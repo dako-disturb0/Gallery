@@ -124,7 +124,7 @@ fun MediaPreviewScreen(
                 )
             }
         }
-    ) { innerPadding ->
+    ) { _ ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
