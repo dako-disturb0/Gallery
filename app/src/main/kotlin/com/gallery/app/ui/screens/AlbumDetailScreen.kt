@@ -2,6 +2,7 @@ package com.gallery.app.ui.screens
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -121,22 +122,20 @@ fun AlbumDetailScreen(
                             tween(300, delayMillis = (index % 12) * 30)
                         )
                     }
-                    androidx.compose.foundation.clickable { onMediaClick(item) }.let {
-                        MediaThumbnail(
-                            item = item,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f)
-                                .clip(MaterialTheme.shapes.small)
-                                .graphicsLayer {
-                                    alpha = animProgress.value
-                                    scaleX = 0.85f + 0.15f * animProgress.value
-                                    scaleY = 0.85f + 0.15f * animProgress.value
-                                }
-                                .animateItem()
-                                .clickable { onMediaClick(item) }
-                        )
-                    }
+                    MediaThumbnail(
+                        item = item,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clip(MaterialTheme.shapes.small)
+                            .graphicsLayer {
+                                alpha = animProgress.value
+                                scaleX = 0.85f + 0.15f * animProgress.value
+                                scaleY = 0.85f + 0.15f * animProgress.value
+                            }
+                            .animateItem()
+                            .clickable { onMediaClick(item) }
+                    )
                 }
             }
         }

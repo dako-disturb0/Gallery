@@ -46,7 +46,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.gallery.app.data.MediaItem
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@kotlin.OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MediaPreviewScreen(
     initialItemId: Long,
