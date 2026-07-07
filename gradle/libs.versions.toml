@@ -1,5 +1,6 @@
 [versions]
 agp                  = "9.2.0"
+kotlin               = "2.4.0"
 coreKtx              = "1.19.0"
 junit                = "4.13.2"
 junitVersion         = "1.2.1"
@@ -29,3 +30,4 @@ androidx-navigation-compose     = { group = "androidx.navigation",          name
 
 [plugins]
 android-application = { id = "com.android.application",          version.ref = "agp" }
+kotlin-compose      = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
