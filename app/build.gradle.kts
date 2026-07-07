@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.gallery.app"
-        minSdk = 26
+        minSdk = 25
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
@@ -34,6 +34,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
@@ -58,6 +59,7 @@ kotlin {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
