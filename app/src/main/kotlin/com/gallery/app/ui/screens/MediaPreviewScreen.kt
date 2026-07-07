@@ -124,10 +124,11 @@ fun MediaPreviewScreen(
                 )
             }
         }
-    ) { _ ->
+    ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
                 .clickable { showUi = !showUi }
         ) {
             HorizontalPager(
