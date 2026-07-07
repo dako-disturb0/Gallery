@@ -28,11 +28,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-val requiredPermissions: Array<String> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-    arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
-} else {
-    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-}
+val requiredPermissions: Array<String> = buildList {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        add(Manifest.permission.READ_MEDIA_IMAGES)
+        add(Manifest.permission.READ_MEDIA_VIDEO)
+    } else {
+        add(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        add(Manifest.permission.ACCESS_MEDIA_LOCATION)
+    }
+}.toTypedArray()
 
 @Composable
 fun PermissionScreen(onRequestPermission: () -> Unit) {

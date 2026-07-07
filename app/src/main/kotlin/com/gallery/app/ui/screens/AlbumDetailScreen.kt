@@ -2,7 +2,6 @@ package com.gallery.app.ui.screens
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,11 +15,13 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -40,10 +41,18 @@ import com.gallery.app.ui.components.MediaThumbnail
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FavoritesScreen(
-    favorites: List<MediaItem>,
+fun AlbumDetailScreen(
+    albumId: String,
+    albumName: String,
+    mediaItems: List<MediaItem>,
+    onBackClick: () -> Unit,
     onMediaClick: (MediaItem) -> Unit
 ) {
+    // Filter items belonging to this album/folder
+    val albumMedia = remember(mediaItems, albumId) {
+        mediaItems.filter { it.bucketId == albumId }
+    }
+
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
         rememberTopAppBarState()
     )
@@ -51,41 +60,41 @@ fun FavoritesScreen(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            MediumTopAppBar(
-                title = { Text("Favorit") },
+            LargeTopAppBar(
+                title = { Text(albumName) },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Kembali"
+                        )
+                    }
+                },
                 scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                colors = TopAppBarDefaults.largeTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 )
             )
         }
     ) { innerPadding ->
-        if (favorites.isEmpty()) {
+        if (albumMedia.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = Icons.Outlined.FavoriteBorder,
+                        imageVector = Icons.Outlined.PhotoLibrary,
                         contentDescription = null,
                         modifier = Modifier.size(56.dp),
-                        tint = MaterialTheme.colorScheme.outlineVariant,
+                        tint = MaterialTheme.colorScheme.outlineVariant
                     )
                     Text(
-                        text = "Belum ada favorit",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(top = 12.dp),
-                    )
-                    Text(
-                        text = "Tandai foto sebagai favorit dari aplikasi Galeri bawaan perangkat",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = "Tidak ada file di folder ini",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(top = 6.dp, start = 32.dp, end = 32.dp),
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -95,15 +104,15 @@ fun FavoritesScreen(
                 contentPadding = PaddingValues(
                     start = 2.dp, end = 2.dp,
                     top = innerPadding.calculateTopPadding() + 2.dp,
-                    bottom = innerPadding.calculateBottomPadding() + 2.dp,
+                    bottom = innerPadding.calculateBottomPadding() + 2.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize()
             ) {
                 itemsIndexed(
-                    items = favorites,
-                    key = { _, item -> item.id },
+                    items = albumMedia,
+                    key = { _, item -> item.id }
                 ) { index, item ->
                     val animProgress = remember { Animatable(0f) }
                     LaunchedEffect(item.id) {
@@ -112,20 +121,22 @@ fun FavoritesScreen(
                             tween(300, delayMillis = (index % 12) * 30)
                         )
                     }
-                    MediaThumbnail(
-                        item = item,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(1f)
-                            .clip(MaterialTheme.shapes.small)
-                            .graphicsLayer {
-                                alpha = animProgress.value
-                                scaleX = 0.85f + 0.15f * animProgress.value
-                                scaleY = 0.85f + 0.15f * animProgress.value
-                            }
-                            .clickable { onMediaClick(item) }
-                            .animateItem(),
-                    )
+                    androidx.compose.foundation.clickable { onMediaClick(item) }.let {
+                        MediaThumbnail(
+                            item = item,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .clip(MaterialTheme.shapes.small)
+                                .graphicsLayer {
+                                    alpha = animProgress.value
+                                    scaleX = 0.85f + 0.15f * animProgress.value
+                                    scaleY = 0.85f + 0.15f * animProgress.value
+                                }
+                                .animateItem()
+                                .clickable { onMediaClick(item) }
+                        )
+                    }
                 }
             }
         }

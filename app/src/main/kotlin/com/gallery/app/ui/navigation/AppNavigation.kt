@@ -5,10 +5,12 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.PhotoAlbum
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.PhotoAlbum
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -19,6 +21,26 @@ sealed class Screen(val route: String) {
     data object Albums   : Screen("albums")
     data object Search   : Screen("search")
     data object Favorites: Screen("favorites")
+    data object Settings : Screen("settings")
+    
+    data object AlbumDetail : Screen("album_detail/{albumId}/{albumName}") {
+        fun createRoute(albumId: String, albumName: String) = "album_detail/$albumId/$albumName"
+    }
+    
+    data object MediaPreview : Screen("media_preview/{itemId}?albumId={albumId}&isFavorite={isFavorite}") {
+        fun createRoute(itemId: Long, albumId: String? = null, isFavorite: Boolean = false): String {
+            return buildString {
+                append("media_preview/$itemId")
+                val params = mutableListOf<String>()
+                if (albumId != null) params.add("albumId=$albumId")
+                if (isFavorite) params.add("isFavorite=true")
+                if (params.isNotEmpty()) {
+                    append("?")
+                    append(params.joinToString("&"))
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -55,5 +77,11 @@ val bottomNavItems = listOf(
         label         = "Favorit",
         selectedIcon  = Icons.Rounded.Favorite,
         unselectedIcon= Icons.Outlined.FavoriteBorder,
+    ),
+    NavItem(
+        screen        = Screen.Settings,
+        label         = "Setelan",
+        selectedIcon  = Icons.Rounded.Settings,
+        unselectedIcon= Icons.Outlined.Settings,
     ),
 )

@@ -2,6 +2,7 @@ package com.gallery.app.ui.screens
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,8 +10,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -31,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.gallery.app.data.MediaItem
@@ -39,7 +43,11 @@ import com.gallery.app.ui.components.ShimmerBox
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PhotosScreen(mediaItems: List<MediaItem>, isLoading: Boolean) {
+fun PhotosScreen(
+    groupedMediaItems: List<Pair<String, List<MediaItem>>>,
+    isLoading: Boolean,
+    onMediaClick: (MediaItem) -> Unit
+) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
         rememberTopAppBarState()
     )
@@ -78,7 +86,7 @@ fun PhotosScreen(mediaItems: List<MediaItem>, isLoading: Boolean) {
                     )
                 }
             }
-        } else if (mediaItems.isEmpty()) {
+        } else if (groupedMediaItems.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -110,30 +118,46 @@ fun PhotosScreen(mediaItems: List<MediaItem>, isLoading: Boolean) {
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                itemsIndexed(
-                    items = mediaItems,
-                    key = { _, item -> item.id },
-                ) { index, item ->
-                    val animProgress = remember { Animatable(0f) }
-                    LaunchedEffect(item.id) {
-                        animProgress.animateTo(
-                            1f,
-                            tween(300, delayMillis = (index % 12) * 30)
+                groupedMediaItems.forEach { (dateHeader, items) ->
+                    // Tanggal Header Span Penuh
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Text(
+                            text = dateHeader,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 8.dp, top = 16.dp, end = 8.dp, bottom = 8.dp)
                         )
                     }
-                    MediaThumbnail(
-                        item = item,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(1f)
-                            .clip(MaterialTheme.shapes.small)
-                            .graphicsLayer {
-                                alpha = animProgress.value
-                                scaleX = 0.85f + 0.15f * animProgress.value
-                                scaleY = 0.85f + 0.15f * animProgress.value
-                            }
-                            .animateItem(),
-                    )
+
+                    itemsIndexed(
+                        items = items,
+                        key = { _, item -> item.id },
+                    ) { index, item ->
+                        val animProgress = remember { Animatable(0f) }
+                        LaunchedEffect(item.id) {
+                            animProgress.animateTo(
+                                1f,
+                                tween(300, delayMillis = (index % 12) * 30)
+                            )
+                        }
+                        MediaThumbnail(
+                            item = item,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .clip(MaterialTheme.shapes.small)
+                                .graphicsLayer {
+                                    alpha = animProgress.value
+                                    scaleX = 0.85f + 0.15f * animProgress.value
+                                    scaleY = 0.85f + 0.15f * animProgress.value
+                                }
+                                .animateItem()
+                                .clickable { onMediaClick(item) },
+                        )
+                    }
                 }
             }
         }

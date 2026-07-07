@@ -16,12 +16,28 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+enum class DateGrouping(val label: String) {
+    DAILY("Hari"),
+    WEEKLY("Minggu"),
+    MONTHLY("Bulan"),
+    YEARLY("Tahun")
+}
+
 class GalleryViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = MediaRepository(application)
 
     private val _mediaItems = MutableStateFlow<List<MediaItem>>(emptyList())
     val mediaItems: StateFlow<List<MediaItem>> = _mediaItems.asStateFlow()
+
+    private val _dateGrouping = MutableStateFlow(DateGrouping.DAILY)
+    val dateGrouping: StateFlow<DateGrouping> = _dateGrouping.asStateFlow()
+
+    val groupedMediaItems: StateFlow<List<Pair<String, List<MediaItem>>>> = combine(
+        _mediaItems, _dateGrouping
+    ) { items, grouping ->
+        groupMediaItems(items, grouping)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _albums = MutableStateFlow<List<Album>>(emptyList())
     val albums: StateFlow<List<Album>> = _albums.asStateFlow()
@@ -70,5 +86,34 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
             .sortedByDescending { it.itemCount }
+    }
+
+    fun setDateGrouping(grouping: DateGrouping) {
+        _dateGrouping.value = grouping
+    }
+
+    private fun groupMediaItems(items: List<MediaItem>, grouping: DateGrouping): List<Pair<String, List<MediaItem>>> {
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", java.util.Locale("id", "ID"))
+        val monthFormatter = java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale("id", "ID"))
+        val yearFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyy", java.util.Locale("id", "ID"))
+        
+        return items.groupBy { item ->
+            try {
+                val instant = java.time.Instant.ofEpochSecond(item.dateAdded)
+                val localDate = java.time.LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault()).toLocalDate()
+                when (grouping) {
+                    DateGrouping.DAILY -> localDate.format(formatter)
+                    DateGrouping.WEEKLY -> {
+                        val monday = localDate.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+                        val sunday = monday.plusDays(6)
+                        "Minggu: ${monday.format(java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale("id", "ID")))} - ${sunday.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale("id", "ID")))}"
+                    }
+                    DateGrouping.MONTHLY -> localDate.format(monthFormatter)
+                    DateGrouping.YEARLY -> localDate.format(yearFormatter)
+                }
+            } catch (e: Exception) {
+                "Lainnya"
+            }
+        }.toList()
     }
 }

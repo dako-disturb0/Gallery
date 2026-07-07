@@ -1,5 +1,6 @@
 package com.gallery.app.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +43,7 @@ fun SearchScreen(
     query: String,
     onQueryChange: (String) -> Unit,
     results: List<MediaItem>,
+    onMediaClick: (MediaItem) -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
 
@@ -90,6 +92,7 @@ fun SearchScreen(
                                     .fillMaxWidth()
                                     .aspectRatio(1f)
                                     .clip(MaterialTheme.shapes.small)
+                                    .clickable { onMediaClick(item) }
                                     .animateItem(),
                             )
                         }

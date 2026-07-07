@@ -2,6 +2,7 @@ package com.gallery.app.ui.screens
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,7 +44,11 @@ import com.gallery.app.ui.components.ShimmerBox
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AlbumsScreen(albums: List<Album>, isLoading: Boolean) {
+fun AlbumsScreen(
+    albums: List<Album>,
+    isLoading: Boolean,
+    onAlbumClick: (Album) -> Unit
+) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
         rememberTopAppBarState()
     )
@@ -140,6 +145,8 @@ fun AlbumsScreen(albums: List<Album>, isLoading: Boolean) {
                                 alpha = animProgress.value
                                 translationY = (1f - animProgress.value) * 40f
                             }
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable { onAlbumClick(album) }
                             .animateItem()
                     ) {
                         AlbumCoverThumbnail(
