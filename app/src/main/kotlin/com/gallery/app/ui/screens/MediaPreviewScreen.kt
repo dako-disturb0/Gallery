@@ -39,12 +39,18 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +59,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -134,6 +142,11 @@ fun MediaPreviewScreen(
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var dismissAnimJob by remember { mutableStateOf<Job?>(null) }
 
+    val activePlayers = remember { mutableStateMapOf<Int, ExoPlayer>() }
+    val activePlayer by remember {
+        derivedStateOf { activePlayers[pagerState.currentPage] }
+    }
+
     val density = LocalDensity.current
     val dismissThreshold = with(density) { 150.dp.toPx() }
 
@@ -194,6 +207,14 @@ fun MediaPreviewScreen(
                     if (page == pagerState.currentPage) {
                         currentPageZoomed = isZoomed
                         if (isZoomed) showUi = false
+                    }
+                },
+                onPlayerActive = { player ->
+                    activePlayers[page] = player
+                },
+                onPlayerInactive = { player ->
+                    if (activePlayers[page] == player) {
+                        activePlayers.remove(page)
                     }
                 }
             )
@@ -257,18 +278,30 @@ fun MediaPreviewScreen(
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.5f))
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                BottomAction(Icons.Outlined.Share, "Bagikan") { }
-                BottomAction(Icons.Outlined.Edit, "Edit") { }
-                BottomAction(Icons.Outlined.Info, "Detail") { showDetailsSheet = true }
-                BottomAction(Icons.Outlined.Delete, "Hapus") { }
+                if (currentItem.isVideo && activePlayer != null) {
+                    VideoControls(
+                        player = activePlayer!!,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    BottomAction(Icons.Outlined.Share, "Bagikan") { }
+                    BottomAction(Icons.Outlined.Edit, "Edit") { }
+                    BottomAction(Icons.Outlined.Info, "Detail") { showDetailsSheet = true }
+                    BottomAction(Icons.Outlined.Delete, "Hapus") { }
+                }
             }
         }
 
@@ -307,7 +340,9 @@ private fun ZoomablePage(
     onDragOffsetChange: (Float) -> Unit,
     onDragEnd: () -> Unit,
     onTap: () -> Unit,
-    onZoomChanged: (Boolean) -> Unit
+    onZoomChanged: (Boolean) -> Unit,
+    onPlayerActive: (ExoPlayer) -> Unit,
+    onPlayerInactive: (ExoPlayer) -> Unit
 ) {
     if (item.isVideo) {
         Box(
@@ -316,7 +351,12 @@ private fun ZoomablePage(
                 .graphicsLayer { translationY = dragOffsetY },
             contentAlignment = Alignment.Center
         ) {
-            VideoPlayer(uri = item.uri, isSelected = isSelected)
+            VideoPlayer(
+                uri = item.uri,
+                isSelected = isSelected,
+                onPlayerActive = onPlayerActive,
+                onPlayerInactive = onPlayerInactive
+            )
         }
         return
     }
@@ -344,8 +384,8 @@ private fun ZoomablePage(
             .graphicsLayer {
                 scaleX = scale * dismissScaleFactor
                 scaleY = scale * dismissScaleFactor
-                translationX = if (isZoomed) panX / scale else 0f
-                translationY = if (isZoomed) panY / scale else dragOffsetY
+                translationX = if (isZoomed) panX else 0f
+                translationY = if (isZoomed) panY else dragOffsetY
             }
             .pointerInput(Unit) {
                 val touchSlop = viewConfiguration.touchSlop
@@ -370,14 +410,35 @@ private fun ZoomablePage(
                                 if (lastTapTime != 0L && now - lastTapTime < doubleTapTimeout) {
                                     tapJob?.cancel()
                                     lastTapTime = 0L
+                                    val tapChange = event.changes.firstOrNull()
+                                    val tapX = tapChange?.position?.x ?: (size.width / 2f)
+                                    val tapY = tapChange?.position?.y ?: (size.height / 2f)
+                                    val tapXFromCenter = tapX - size.width / 2f
+                                    val tapYFromCenter = tapY - size.height / 2f
+
                                     scope.launch {
                                         if (scale > 1.1f) {
-                                            animate(scale, 1f) { v, _ -> scale = v }
-                                            panX = 0f
-                                            panY = 0f
+                                            val startScale = scale
+                                            val startPanX = panX
+                                            val startPanY = panY
+                                            animate(0f, 1f) { progress, _ ->
+                                                scale = startScale + (1f - startScale) * progress
+                                                panX = startPanX + (0f - startPanX) * progress
+                                                panY = startPanY + (0f - startPanY) * progress
+                                            }
                                             onZoomChanged(false)
                                         } else {
-                                            animate(scale, 2.5f) { v, _ -> scale = v }
+                                            val targetScale = 2.5f
+                                            val maxPanX = size.width * (targetScale - 1f) / 2f
+                                            val maxPanY = size.height * (targetScale - 1f) / 2f
+                                            val targetPanX = (-tapXFromCenter * (targetScale - 1f)).coerceIn(-maxPanX, maxPanX)
+                                            val targetPanY = (-tapYFromCenter * (targetScale - 1f)).coerceIn(-maxPanY, maxPanY)
+
+                                            animate(0f, 1f) { progress, _ ->
+                                                scale = 1f + (targetScale - 1f) * progress
+                                                panX = targetPanX * progress
+                                                panY = targetPanY * progress
+                                            }
                                             onZoomChanged(true)
                                         }
                                     }
@@ -459,7 +520,12 @@ private fun ZoomablePage(
 
 @AndroidOptIn(UnstableApi::class)
 @Composable
-fun VideoPlayer(uri: Uri, isSelected: Boolean) {
+fun VideoPlayer(
+    uri: Uri,
+    isSelected: Boolean,
+    onPlayerActive: (ExoPlayer) -> Unit,
+    onPlayerInactive: (ExoPlayer) -> Unit
+) {
     val context = LocalContext.current
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
@@ -473,25 +539,147 @@ fun VideoPlayer(uri: Uri, isSelected: Boolean) {
         if (isSelected) {
             exoPlayer.playWhenReady = true
             exoPlayer.play()
+            onPlayerActive(exoPlayer)
         } else {
             exoPlayer.pause()
+            onPlayerInactive(exoPlayer)
         }
     }
 
     DisposableEffect(Unit) {
-        onDispose { exoPlayer.release() }
+        onDispose {
+            onPlayerInactive(exoPlayer)
+            exoPlayer.release()
+        }
     }
 
     AndroidView(
         factory = { ctx ->
             PlayerView(ctx).apply {
                 player = exoPlayer
-                useController = true
+                useController = false
                 setBackgroundColor(android.graphics.Color.BLACK)
             }
         },
         modifier = Modifier.fillMaxSize()
     )
+}
+
+@Composable
+fun VideoControls(player: ExoPlayer, modifier: Modifier = Modifier) {
+    var isPlaying by remember(player) { mutableStateOf(player.isPlaying) }
+    var currentPosition by remember(player) { mutableLongStateOf(player.currentPosition) }
+    var duration by remember(player) { mutableLongStateOf(player.duration.coerceAtLeast(0L)) }
+    var volume by remember(player) { mutableFloatStateOf(player.volume) }
+
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) {
+                isPlaying = playing
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                duration = player.duration.coerceAtLeast(0L)
+            }
+
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int
+            ) {
+                currentPosition = newPosition.positionMs
+            }
+        }
+        player.addListener(listener)
+
+        isPlaying = player.isPlaying
+        duration = player.duration.coerceAtLeast(0L)
+        currentPosition = player.currentPosition
+        volume = player.volume
+
+        onDispose {
+            player.removeListener(listener)
+        }
+    }
+
+    LaunchedEffect(player, isPlaying) {
+        if (isPlaying) {
+            while (true) {
+                currentPosition = player.currentPosition
+                delay(200)
+            }
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = {
+                    if (isPlaying) {
+                        player.pause()
+                    } else {
+                        player.play()
+                    }
+                }
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = Color.White
+                )
+            }
+
+            Text(
+                text = "${formatDuration(currentPosition)} / ${formatDuration(duration)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White
+            )
+
+            IconButton(
+                onClick = {
+                    if (volume > 0f) {
+                        player.volume = 0f
+                        volume = 0f
+                    } else {
+                        player.volume = 1f
+                        volume = 1f
+                    }
+                }
+            ) {
+                Icon(
+                    imageVector = if (volume > 0f) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
+                    contentDescription = if (volume > 0f) "Mute" else "Unmute",
+                    tint = Color.White
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Slider(
+            value = currentPosition.toFloat(),
+            onValueChange = { newValue ->
+                currentPosition = newValue.toLong()
+                player.seekTo(currentPosition)
+            },
+            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color.White,
+                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }
 
 @Composable
