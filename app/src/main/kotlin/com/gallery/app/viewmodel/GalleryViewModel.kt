@@ -123,6 +123,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         _searchQuery.value = query
     }
 
+    fun favoriteRequest(uris: List<android.net.Uri>, favorite: Boolean) =
+        repository.favoriteRequest(uris, favorite)
+
+    fun deleteRequest(uris: List<android.net.Uri>) =
+        repository.deleteRequest(uris)
+
     private fun deriveAlbums(items: List<MediaItem>): List<Album> {
         return items
             .filter { it.bucketId != null }

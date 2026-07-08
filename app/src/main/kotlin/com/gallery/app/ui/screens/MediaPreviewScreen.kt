@@ -1,7 +1,12 @@
 package com.gallery.app.ui.screens
 
 import android.net.Uri
-import android.text.format.Formatter
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.IntentSender
+import android.os.Build
+import android.widget.Toast
 import androidx.annotation.OptIn as AndroidOptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animate
@@ -29,6 +34,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -38,11 +44,20 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Wallpaper
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -53,6 +68,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -62,6 +78,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -87,10 +104,16 @@ import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.gallery.app.data.MediaActions
 import com.gallery.app.data.MediaItem
+import com.gallery.app.data.MediaMetadata
+import com.gallery.app.data.MetadataReader
+import com.gallery.app.data.MetadataSection
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -104,8 +127,12 @@ fun MediaPreviewScreen(
     isFavorite: Boolean,
     allMediaItems: List<MediaItem>,
     favoritesList: List<MediaItem>,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onFavoriteRequest: (List<Uri>, Boolean) -> IntentSender?,
+    onDeleteRequest: (List<Uri>) -> IntentSender?
 ) {
+    val context = LocalContext.current
+
     val displayList = remember(allMediaItems, favoritesList, albumId, isFavorite) {
         when {
             albumId != null -> allMediaItems.filter { it.bucketId == albumId }
@@ -119,18 +146,6 @@ fun MediaPreviewScreen(
         if (index >= 0) index else 0
     }
 
-    if (displayList.isEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = "Media tidak ditemukan", color = Color.White)
-        }
-        return
-    }
-
     val pagerState = rememberPagerState(
         initialPage = initialIndex,
         pageCount = { displayList.size }
@@ -139,6 +154,7 @@ fun MediaPreviewScreen(
 
     var showUi by remember { mutableStateOf(true) }
     var showDetailsSheet by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
     var currentPageZoomed by remember { mutableStateOf(false) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var dismissAnimJob by remember { mutableStateOf<Job?>(null) }
@@ -151,18 +167,53 @@ fun MediaPreviewScreen(
     val density = LocalDensity.current
     val dismissThreshold = with(density) { 150.dp.toPx() }
 
-    val currentItem by remember {
-        derivedStateOf {
-            displayList[pagerState.currentPage.coerceIn(0, displayList.lastIndex)]
-        }
-    }
+    val currentItem = displayList.getOrNull(pagerState.currentPage)
 
     val backgroundAlpha by remember {
         derivedStateOf { (1f - abs(dragOffsetY) / 800f).coerceIn(0f, 1f) }
     }
 
+    val favoriteLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) {}
+    val deleteLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) {}
+
+    val favoriteSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+
+    fun toggleFavorite(target: MediaItem) {
+        val sender = onFavoriteRequest(listOf(target.uri), !target.isFavorite) ?: return
+        favoriteLauncher.launch(IntentSenderRequest.Builder(sender).build())
+    }
+
+    fun requestDelete(target: MediaItem) {
+        val sender = onDeleteRequest(listOf(target.uri))
+        if (sender != null) {
+            deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
+        } else {
+            Toast.makeText(context, "Menghapus butuh Android 11+", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     LaunchedEffect(pagerState.currentPage) {
         currentPageZoomed = false
+    }
+
+    LaunchedEffect(displayList.isEmpty()) {
+        if (displayList.isEmpty()) onBackClick()
+    }
+
+    if (displayList.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = "Media tidak ditemukan", color = Color.White)
+        }
+        return
     }
 
     Box(
@@ -223,9 +274,10 @@ fun MediaPreviewScreen(
             )
         }
 
-        // Top bar
+        val topItem = currentItem
+
         AnimatedVisibility(
-            visible = showUi && dragOffsetY == 0f && !currentPageZoomed,
+            visible = showUi && dragOffsetY == 0f && !currentPageZoomed && topItem != null,
             enter = fadeIn() + slideInVertically { -it },
             exit = fadeOut() + slideOutVertically { -it },
             modifier = Modifier.align(Alignment.TopCenter)
@@ -253,30 +305,69 @@ fun MediaPreviewScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = formatDate(currentItem.dateAdded),
+                            text = formatDate(topItem?.dateAdded ?: 0L),
                             style = MaterialTheme.typography.titleSmall,
                             color = Color.White
                         )
                         Text(
-                            text = formatTime(currentItem.dateAdded),
+                            text = formatTime(topItem?.dateAdded ?: 0L),
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.7f)
                         )
                     }
-                    IconButton(onClick = { showDetailsSheet = true }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Info,
-                            contentDescription = "Detail",
-                            tint = Color.White
-                        )
+                    if (favoriteSupported) {
+                        IconButton(onClick = { topItem?.let { toggleFavorite(it) } }) {
+                            Icon(
+                                imageVector = if (topItem?.isFavorite == true) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = "Favorit",
+                                tint = if (topItem?.isFavorite == true) Color(0xFFE57373) else Color.White
+                            )
+                        }
+                    }
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreVert,
+                                contentDescription = "Menu",
+                                tint = Color.White
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Detail") },
+                                leadingIcon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    showDetailsSheet = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Buka dengan") },
+                                leadingIcon = { Icon(Icons.Outlined.OpenInNew, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    topItem?.let { MediaActions.openWith(context, it) }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Jadikan sebagai") },
+                                leadingIcon = { Icon(Icons.Outlined.Wallpaper, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    topItem?.let { MediaActions.useAs(context, it) }
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // Bottom action bar
         AnimatedVisibility(
-            visible = showUi && dragOffsetY == 0f && !currentPageZoomed,
+            visible = showUi && dragOffsetY == 0f && !currentPageZoomed && topItem != null,
             enter = fadeIn() + slideInVertically { it },
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -286,7 +377,7 @@ fun MediaPreviewScreen(
                     .fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.5f))
             ) {
-                if (currentItem.isVideo && activePlayer != null) {
+                if (topItem?.isVideo == true && activePlayer != null) {
                     VideoControls(
                         player = activePlayer!!,
                         modifier = Modifier.fillMaxWidth()
@@ -300,22 +391,27 @@ fun MediaPreviewScreen(
                         .padding(vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    BottomAction(Icons.Outlined.Share, "Bagikan") { }
-                    BottomAction(Icons.Outlined.Edit, "Edit") { }
+                    BottomAction(Icons.Outlined.Share, "Bagikan") {
+                        topItem?.let { MediaActions.share(context, it) }
+                    }
+                    BottomAction(Icons.Outlined.Edit, "Edit") {
+                        topItem?.let { MediaActions.edit(context, it) }
+                    }
                     BottomAction(Icons.Outlined.Info, "Detail") { showDetailsSheet = true }
-                    BottomAction(Icons.Outlined.Delete, "Hapus") { }
+                    BottomAction(Icons.Outlined.Delete, "Hapus") {
+                        topItem?.let { requestDelete(it) }
+                    }
                 }
             }
         }
 
-        // Details bottom sheet
-        if (showDetailsSheet) {
+        if (showDetailsSheet && topItem != null) {
             ModalBottomSheet(
                 onDismissRequest = { showDetailsSheet = false },
                 containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 2.dp
             ) {
-                MediaDetailsContent(item = currentItem)
+                MediaDetailsContent(item = topItem)
             }
         }
     }
@@ -688,6 +784,9 @@ fun VideoControls(player: ExoPlayer, modifier: Modifier = Modifier) {
 @Composable
 private fun MediaDetailsContent(item: MediaItem) {
     val context = LocalContext.current
+    val metadata by produceState<MediaMetadata?>(initialValue = null, item.id) {
+        value = withContext(Dispatchers.IO) { MetadataReader.read(context, item) }
+    }
 
     Column(
         modifier = Modifier
@@ -695,68 +794,86 @@ private fun MediaDetailsContent(item: MediaItem) {
             .padding(horizontal = 24.dp, vertical = 8.dp)
     ) {
         Text(
-            text = "${formatDate(item.dateAdded)}  •  ${formatTime(item.dateAdded)}",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Tambahkan teks...",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Detail",
-            style = MaterialTheme.typography.titleMedium,
+            text = "Info",
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = item.displayName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${Formatter.formatFileSize(context, item.size)}  •  ${item.mimeType}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (item.bucketName != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = item.bucketName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (item.isVideo && item.duration > 0) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Durasi: ${formatDuration(item.duration)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        val data = metadata
+        if (data == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            data.sections.forEach { section ->
+                MetadataSectionCard(section)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            val lat = data.latitude
+            val lon = data.longitude
+            if (lat != null && lon != null) {
+                TextButton(
+                    onClick = { MediaActions.openLocation(context, lat, lon, item.displayName) }
+                ) {
+                    Icon(Icons.Outlined.Map, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Lihat di peta")
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
+@Composable
+private fun MetadataSectionCard(section: MetadataSection) {
+    Text(
+        text = section.title,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary
+    )
+    Spacer(modifier = Modifier.height(6.dp))
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            section.fields.forEachIndexed { index, field ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = field.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(110.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = field.value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (index < section.fields.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                }
+            }
+        }
     }
 }
 

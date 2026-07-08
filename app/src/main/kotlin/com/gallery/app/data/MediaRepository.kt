@@ -2,10 +2,22 @@ package com.gallery.app.data
 
 import android.content.ContentUris
 import android.content.Context
+import android.content.IntentSender
+import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 
 class MediaRepository(private val context: Context) {
+
+    fun deleteRequest(uris: List<Uri>): IntentSender? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        return MediaStore.createDeleteRequest(context.contentResolver, uris).intentSender
+    }
+
+    fun favoriteRequest(uris: List<Uri>, favorite: Boolean): IntentSender? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        return MediaStore.createFavoriteRequest(context.contentResolver, uris, favorite).intentSender
+    }
 
     fun getAllMedia(): List<MediaItem> {
         val items = mutableListOf<MediaItem>()
@@ -31,6 +43,8 @@ class MediaRepository(private val context: Context) {
             add(MediaStore.MediaColumns.MIME_TYPE)
             add(MediaStore.MediaColumns.BUCKET_ID)
             add(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
+            add(MediaStore.MediaColumns.WIDTH)
+            add(MediaStore.MediaColumns.HEIGHT)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 add(MediaStore.MediaColumns.IS_FAVORITE)
             }
@@ -50,6 +64,8 @@ class MediaRepository(private val context: Context) {
                 val mimeCol = cursor.getColumnIndex(MediaStore.MediaColumns.MIME_TYPE)
                 val bucketIdCol = cursor.getColumnIndex(MediaStore.MediaColumns.BUCKET_ID)
                 val bucketNameCol = cursor.getColumnIndex(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
+                val widthCol = cursor.getColumnIndex(MediaStore.MediaColumns.WIDTH)
+                val heightCol = cursor.getColumnIndex(MediaStore.MediaColumns.HEIGHT)
                 val favCol = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     cursor.getColumnIndex(MediaStore.MediaColumns.IS_FAVORITE)
                 } else -1
@@ -74,6 +90,8 @@ class MediaRepository(private val context: Context) {
                             bucketName = if (bucketNameCol >= 0) cursor.getString(bucketNameCol) else null,
                             isFavorite = if (favCol >= 0) cursor.getInt(favCol) == 1 else false,
                             duration = if (durationCol >= 0) cursor.getLong(durationCol) else 0,
+                            width = if (widthCol >= 0) cursor.getInt(widthCol) else 0,
+                            height = if (heightCol >= 0) cursor.getInt(heightCol) else 0,
                         )
                     )
                 }

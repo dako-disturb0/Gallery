@@ -13,6 +13,8 @@ data class MediaItem(
     val bucketName: String?,
     val isFavorite: Boolean,
     val duration: Long = 0,
+    val width: Int = 0,
+    val height: Int = 0,
 ) {
     val isVideo: Boolean get() = mimeType.startsWith("video/")
 }

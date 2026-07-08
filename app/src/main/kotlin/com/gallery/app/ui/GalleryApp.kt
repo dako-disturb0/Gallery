@@ -251,7 +251,9 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                         isFavorite = isFavorite,
                         allMediaItems = mediaItems,
                         favoritesList = favorites,
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onFavoriteRequest = viewModel::favoriteRequest,
+                        onDeleteRequest = viewModel::deleteRequest
                     )
                 }
             }

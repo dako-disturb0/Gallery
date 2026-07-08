@@ -46,6 +46,9 @@ val requiredPermissions: Array<String> = buildList {
             add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        add(Manifest.permission.ACCESS_MEDIA_LOCATION)
+    }
 }.toTypedArray()
 
 fun hasMediaAccess(context: Context): Boolean {
