@@ -57,12 +57,11 @@
 - **Efek:** Potensi crash. Probabilitas kini rendah karena `loadMedia()` hanya dipanggil sekali, tapi menjadi nyata begitu ada refresh/observer.
 - **Saran fix:** `displayList.getOrNull(pagerState.currentPage)` + guard null, atau `coerceIn(0, lastIndex)` sebelum indexing.
 
-### #5 — `compileSdk = 37` belum tersedia sebagai rilis stabil — MEDIUM
-- **File:** `app/build.gradle.kts:8`
-- **Masalah:** SDK stabil tertinggi saat ini adalah **API 36 (Android 16)**. API 37 masih tahap pengembangan/preview.
-- **Efek:** Build tidak reproducible; bergantung pada preview SDK yang terpasang di runner CI. `targetSdk = 35` juga tertinggal (Play mewajibkan target 36 mulai 31 Agustus 2026).
-- **Sumber:** [SDK Platform release notes](https://developer.android.com/tools/releases/platforms) · [API levels](https://apilevels.com/)
-- **Saran fix:** `compileSdk = 36`, pertimbangkan `targetSdk = 36`.
+### #5 — ~~`compileSdk = 37` belum tersedia sebagai rilis stabil~~ (DIKOREKSI) — targetSdk dinaikkan ke 36
+- **File:** `app/build.gradle.kts:8,13`
+- **Koreksi:** Dugaan awal bahwa `compileSdk 37` tidak valid **SALAH**. CI (`checkDebugAarMetadata`) membuktikan dependency `androidx.core:core:1.19.0` dan `androidx.lifecycle:*:2.11.0` **mewajibkan** `compileSdk 37`. Menurunkan ke 36 justru mem-break build. Jadi `compileSdk = 37` **dipertahankan**.
+- **Yang tetap dikerjakan:** `targetSdk 35 → 36` (Play mewajibkan target 36 mulai 31 Agustus 2026). Ini valid karena `compileSdk (37) >= targetSdk (36)`.
+- **Pelajaran:** Info web (US-only) soal ketersediaan SDK bisa tertinggal; constraint nyata dari graph dependency yang menentukan.
 
 ### #6 — Nama album tidak di-encode di path rute navigasi → mismatch/crash — MEDIUM
 - **File:** `app/src/main/kotlin/com/gallery/app/ui/navigation/AppNavigation.kt:26-28` (`"album_detail/{albumId}/{albumName}"` + `createRoute`)
