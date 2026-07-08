@@ -1,6 +1,8 @@
 package com.gallery.app.ui.components
 
 import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -27,18 +29,41 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 
 val requiredPermissions: Array<String> = buildList {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        add(Manifest.permission.READ_MEDIA_IMAGES)
-        add(Manifest.permission.READ_MEDIA_VIDEO)
-    } else {
-        add(Manifest.permission.READ_EXTERNAL_STORAGE)
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        add(Manifest.permission.ACCESS_MEDIA_LOCATION)
+    when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> {
+            add(Manifest.permission.READ_MEDIA_IMAGES)
+            add(Manifest.permission.READ_MEDIA_VIDEO)
+            add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+        }
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+            add(Manifest.permission.READ_MEDIA_IMAGES)
+            add(Manifest.permission.READ_MEDIA_VIDEO)
+        }
+        else -> {
+            add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
     }
 }.toTypedArray()
+
+fun hasMediaAccess(context: Context): Boolean {
+    fun granted(permission: String) =
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+    return when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
+            granted(Manifest.permission.READ_MEDIA_IMAGES) ||
+                granted(Manifest.permission.READ_MEDIA_VIDEO) ||
+                granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
+            granted(Manifest.permission.READ_MEDIA_IMAGES) ||
+                granted(Manifest.permission.READ_MEDIA_VIDEO)
+        else ->
+            granted(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+}
 
 @Composable
 fun PermissionScreen(onRequestPermission: () -> Unit) {

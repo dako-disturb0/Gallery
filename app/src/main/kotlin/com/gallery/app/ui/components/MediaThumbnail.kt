@@ -1,11 +1,13 @@
 package com.gallery.app.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BrokenImage
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +22,21 @@ import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.gallery.app.data.MediaItem
+
+@Composable
+private fun ThumbnailError(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.BrokenImage,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(28.dp),
+        )
+    }
+}
 
 @Composable
 fun MediaThumbnail(
@@ -37,7 +54,7 @@ fun MediaThumbnail(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
             loading = { ShimmerBox(Modifier.fillMaxSize()) },
-            error = { ShimmerBox(Modifier.fillMaxSize()) },
+            error = { ThumbnailError(Modifier.fillMaxSize()) },
         )
         if (item.isVideo) {
             Icon(
@@ -68,6 +85,6 @@ fun AlbumCoverThumbnail(
         contentScale = ContentScale.Crop,
         modifier = modifier,
         loading = { ShimmerBox(Modifier.fillMaxSize()) },
-        error = { ShimmerBox(Modifier.fillMaxSize()) },
+        error = { ThumbnailError(Modifier.fillMaxSize()) },
     )
 }

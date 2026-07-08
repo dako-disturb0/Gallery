@@ -59,7 +59,7 @@ fun AlbumsScreen(
             MediumTopAppBar(
                 title = { Text("Album") },
                 scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 )

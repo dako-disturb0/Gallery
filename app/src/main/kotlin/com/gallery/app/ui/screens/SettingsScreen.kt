@@ -22,7 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.NetworkCheck
 import androidx.compose.material.icons.rounded.Storage
@@ -63,7 +62,7 @@ fun SettingsScreen(
         topBar = {
             LargeTopAppBar(
                 title = { Text("Setelan") },
-                colors = TopAppBarDefaults.largeTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 )
@@ -198,17 +197,6 @@ fun SettingsScreen(
                         title = "Read Locations from Media",
                         description = "Izin membaca informasi geografis (lokasi) dari foto/video.",
                         isGranted = hasLocationPermission
-                    )
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
-
-                    // Izin Internet
-                    val hasNetworkPermission = checkPermission(context, Manifest.permission.INTERNET)
-                    PermissionStatusItem(
-                        icon = Icons.Rounded.Info,
-                        title = "Have Network Access",
-                        description = "Deklarasi akses jaringan (Internet) untuk rendering web/data.",
-                        isGranted = hasNetworkPermission
                     )
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)

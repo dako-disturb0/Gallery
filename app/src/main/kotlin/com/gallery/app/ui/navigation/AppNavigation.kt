@@ -1,5 +1,6 @@
 package com.gallery.app.ui.navigation
 
+import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.GridView
@@ -24,15 +25,16 @@ sealed class Screen(val route: String) {
     data object Settings : Screen("settings")
     
     data object AlbumDetail : Screen("album_detail/{albumId}/{albumName}") {
-        fun createRoute(albumId: String, albumName: String) = "album_detail/$albumId/$albumName"
+        fun createRoute(albumId: String, albumName: String) =
+            "album_detail/${Uri.encode(albumId)}/${Uri.encode(albumName)}"
     }
-    
+
     data object MediaPreview : Screen("media_preview/{itemId}?albumId={albumId}&isFavorite={isFavorite}") {
         fun createRoute(itemId: Long, albumId: String? = null, isFavorite: Boolean = false): String {
             return buildString {
                 append("media_preview/$itemId")
                 val params = mutableListOf<String>()
-                if (albumId != null) params.add("albumId=$albumId")
+                if (albumId != null) params.add("albumId=${Uri.encode(albumId)}")
                 if (isFavorite) params.add("isFavorite=true")
                 if (params.isNotEmpty()) {
                     append("?")

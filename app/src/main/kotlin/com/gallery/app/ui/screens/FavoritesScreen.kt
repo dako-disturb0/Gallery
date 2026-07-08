@@ -54,7 +54,7 @@ fun FavoritesScreen(
             MediumTopAppBar(
                 title = { Text("Favorit") },
                 scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 )

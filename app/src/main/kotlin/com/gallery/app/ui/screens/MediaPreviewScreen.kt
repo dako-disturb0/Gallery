@@ -152,7 +152,9 @@ fun MediaPreviewScreen(
     val dismissThreshold = with(density) { 150.dp.toPx() }
 
     val currentItem by remember {
-        derivedStateOf { displayList[pagerState.currentPage] }
+        derivedStateOf {
+            displayList[pagerState.currentPage.coerceIn(0, displayList.lastIndex)]
+        }
     }
 
     val backgroundAlpha by remember {

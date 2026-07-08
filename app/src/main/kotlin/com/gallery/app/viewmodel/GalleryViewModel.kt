@@ -1,6 +1,10 @@
 package com.gallery.app.viewmodel
 
 import android.app.Application
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.gallery.app.data.Album
@@ -12,9 +16,17 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 
 enum class DateGrouping(val label: String) {
     DAILY("Hari"),
@@ -22,6 +34,13 @@ enum class DateGrouping(val label: String) {
     MONTHLY("Bulan"),
     YEARLY("Tahun")
 }
+
+private val ID_LOCALE = Locale("id", "ID")
+private val DAY_FORMATTER = DateTimeFormatter.ofPattern("d MMMM yyyy", ID_LOCALE)
+private val MONTH_FORMATTER = DateTimeFormatter.ofPattern("MMMM yyyy", ID_LOCALE)
+private val YEAR_FORMATTER = DateTimeFormatter.ofPattern("yyyy", ID_LOCALE)
+private val WEEK_START_FORMATTER = DateTimeFormatter.ofPattern("d MMM", ID_LOCALE)
+private val WEEK_END_FORMATTER = DateTimeFormatter.ofPattern("d MMM yyyy", ID_LOCALE)
 
 class GalleryViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -37,7 +56,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         _mediaItems, _dateGrouping
     ) { items, grouping ->
         groupMediaItems(items, grouping)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _albums = MutableStateFlow<List<Album>>(emptyList())
     val albums: StateFlow<List<Album>> = _albums.asStateFlow()
@@ -53,11 +73,28 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     ) { items, query ->
         if (query.isBlank()) emptyList()
         else items.filter { it.displayName.contains(query, ignoreCase = true) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val favorites: StateFlow<List<MediaItem>> = _mediaItems.map { items ->
         items.filter { it.isFavorite }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            refresh()
+        }
+    }
+
+    init {
+        val resolver = application.contentResolver
+        resolver.registerContentObserver(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, contentObserver
+        )
+        resolver.registerContentObserver(
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, contentObserver
+        )
+    }
 
     fun loadMedia() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -67,6 +104,19 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             _albums.value = deriveAlbums(allMedia)
             _isLoading.value = false
         }
+    }
+
+    private fun refresh() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val allMedia = repository.getAllMedia()
+            _mediaItems.value = allMedia
+            _albums.value = deriveAlbums(allMedia)
+        }
+    }
+
+    override fun onCleared() {
+        getApplication<Application>().contentResolver.unregisterContentObserver(contentObserver)
+        super.onCleared()
     }
 
     fun updateSearchQuery(query: String) {
@@ -93,23 +143,19 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun groupMediaItems(items: List<MediaItem>, grouping: DateGrouping): List<Pair<String, List<MediaItem>>> {
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", java.util.Locale("id", "ID"))
-        val monthFormatter = java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale("id", "ID"))
-        val yearFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyy", java.util.Locale("id", "ID"))
-        
         return items.groupBy { item ->
             try {
-                val instant = java.time.Instant.ofEpochSecond(item.dateAdded)
-                val localDate = java.time.LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault()).toLocalDate()
+                val instant = Instant.ofEpochSecond(item.dateAdded)
+                val localDate = LocalDateTime.ofInstant(instant, ZoneId.systemDefault()).toLocalDate()
                 when (grouping) {
-                    DateGrouping.DAILY -> localDate.format(formatter)
+                    DateGrouping.DAILY -> localDate.format(DAY_FORMATTER)
                     DateGrouping.WEEKLY -> {
-                        val monday = localDate.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+                        val monday = localDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                         val sunday = monday.plusDays(6)
-                        "Minggu: ${monday.format(java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale("id", "ID")))} - ${sunday.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale("id", "ID")))}"
+                        "Minggu: ${monday.format(WEEK_START_FORMATTER)} - ${sunday.format(WEEK_END_FORMATTER)}"
                     }
-                    DateGrouping.MONTHLY -> localDate.format(monthFormatter)
-                    DateGrouping.YEARLY -> localDate.format(yearFormatter)
+                    DateGrouping.MONTHLY -> localDate.format(MONTH_FORMATTER)
+                    DateGrouping.YEARLY -> localDate.format(YEAR_FORMATTER)
                 }
             } catch (e: Exception) {
                 "Lainnya"
