@@ -116,9 +116,20 @@ import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Iso
 import androidx.compose.material.icons.outlined.CenterFocusStrong
 import androidx.compose.material.icons.outlined.LocationOn
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.webkit.WebChromeClient
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.MapEventsOverlay
+import org.osmdroid.events.MapEventsReceiver
+import android.graphics.drawable.GradientDrawable
+import android.graphics.Color as AndroidColor
+import android.content.Context
+import android.content.ClipboardManager
+import android.content.ClipData
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem as Media3MediaItem
@@ -812,77 +823,154 @@ fun OpenStreetMap(
     longitude: Double,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
-    AndroidView(
-        factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.useWideViewPort = true
-                settings.loadWithOverviewMode = true
-                settings.domStorageEnabled = true
-                
-                webViewClient = WebViewClient()
-                webChromeClient = WebChromeClient()
-                
-                val mapHtml = """
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="utf-8" />
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-                        <style>
-                            html, body {
-                                height: 100%;
-                                margin: 0;
-                                padding: 0;
-                                background-color: ${if (isDark) "#1c1c1e" else "#f2f2f7"};
-                            }
-                            #map {
-                                height: 100%;
-                                width: 100%;
-                            }
-                            .leaflet-bar {
-                                box-shadow: 0 1px 5px rgba(0,0,0,0.15) !important;
-                                border-radius: 8px !important;
-                            }
-                            .leaflet-control-attribution {
-                                display: none !important;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <div id="map"></div>
-                        <script>
-                            var map = L.map('map', {
-                                center: [$latitude, $longitude],
-                                zoom: 14,
-                                zoomControl: false,
-                                attributionControl: false
-                            });
-                            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                                maxZoom: 19
-                            }).addTo(map);
-                            
-                            var customIcon = L.divIcon({
-                                className: 'custom-div-icon',
-                                html: "<div style='background-color:#007AFF; width: 14px; height: 14px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.4);'></div>",
-                                iconSize: [20, 20],
-                                iconAnchor: [10, 10]
-                            });
-                            
-                            L.marker([$latitude, $longitude], {icon: customIcon}).addTo(map);
-                        </script>
-                    </body>
-                    </html>
-                """.trimIndent()
-                
-                loadDataWithBaseURL("https://openstreetmap.org", mapHtml, "text/html", "UTF-8", null)
+    
+    val mapView = remember {
+        org.osmdroid.views.MapView(context).apply {
+            org.osmdroid.config.Configuration.getInstance().userAgentValue = context.packageName
+            setBuiltInZoomControls(false)
+            setMultiTouchControls(true)
+            
+            controller.setZoom(16.0)
+            controller.setCenter(org.osmdroid.util.GeoPoint(latitude, longitude))
+        }
+    }
+
+    var selectedStyle by remember { mutableStateOf(TileSourceFactory.MAPNIK) }
+    
+    LaunchedEffect(latitude, longitude, selectedStyle) {
+        mapView.setTileSource(selectedStyle)
+        mapView.controller.animateTo(org.osmdroid.util.GeoPoint(latitude, longitude))
+        
+        mapView.overlays.clear()
+        
+        val marker = org.osmdroid.views.overlay.Marker(mapView).apply {
+            position = org.osmdroid.util.GeoPoint(latitude, longitude)
+            val markerDrawable = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(android.graphics.Color.RED)
+                setStroke(4, android.graphics.Color.WHITE)
+                setSize(48, 48)
             }
-        },
-        modifier = modifier
-    )
+            icon = markerDrawable
+            setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_CENTER)
+            title = "Lokasi Foto"
+        }
+        mapView.overlays.add(marker)
+        
+        val eventsOverlay = org.osmdroid.views.overlay.MapEventsOverlay(object : org.osmdroid.events.MapEventsReceiver {
+            override fun singleTapConfirmedHelper(p: org.osmdroid.util.GeoPoint): Boolean {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Koordinat", "${p.latitude}, ${p.longitude}")
+                clipboard.setPrimaryClip(clip)
+                android.widget.Toast.makeText(
+                    context, 
+                    "Koordinat disalin: ${String.format(java.util.Locale.US, "%.6f, %.6f", p.latitude, p.longitude)}", 
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return true
+            }
+            override fun longPressHelper(p: org.osmdroid.util.GeoPoint): Boolean = false
+        })
+        mapView.overlays.add(eventsOverlay)
+        
+        mapView.invalidate()
+    }
+
+    DisposableEffect(mapView) {
+        onDispose {
+            mapView.onDetach()
+        }
+    }
+
+    Box(modifier = modifier) {
+        AndroidView(
+            factory = { mapView },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            IconButton(
+                onClick = { mapView.controller.zoomIn() },
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = if (isDark) Color(0xFF2C2C2E).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = "Zoom In",
+                    tint = if (isDark) Color.White else Color.Black,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            
+            IconButton(
+                onClick = { mapView.controller.zoomOut() },
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = if (isDark) Color(0xFF2C2C2E).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Remove,
+                    contentDescription = "Zoom Out",
+                    tint = if (isDark) Color.White else Color.Black,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(12.dp)
+                .background(
+                    color = if (isDark) Color(0xFF1C1C1E).copy(alpha = 0.85f) else Color(0xFFE5E5EA).copy(alpha = 0.85f),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .padding(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            val styles = listOf(
+                "Standard" to TileSourceFactory.MAPNIK,
+                "Topo" to TileSourceFactory.USGS_TOPO,
+                "Cycle" to TileSourceFactory.CYCLEMAP
+            )
+            styles.forEach { (label, source) ->
+                val isSelected = selectedStyle == source
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = if (isSelected) {
+                                if (isDark) Color(0xFF2C2C2E) else Color.White
+                            } else Color.Transparent,
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .clickable { selectedStyle = source }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isDark) Color.White else Color.Black
+                    )
+                }
+            }
+        }
+    }
 }
 
 data class IconConfig(
