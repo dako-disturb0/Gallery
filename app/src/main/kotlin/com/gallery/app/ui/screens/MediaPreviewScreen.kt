@@ -480,12 +480,6 @@ private fun ZoomablePage(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .graphicsLayer {
-                scaleX = scale * dismissScaleFactor
-                scaleY = scale * dismissScaleFactor
-                translationX = if (isZoomed) panX else 0f
-                translationY = if (isZoomed) panY else dragOffsetY
-            }
             .pointerInput(Unit) {
                 val touchSlop = viewConfiguration.touchSlop
                 val doubleTapTimeout = viewConfiguration.doubleTapTimeoutMillis
@@ -602,6 +596,12 @@ private fun ZoomablePage(
                         }
                     }
                 }
+            }
+            .graphicsLayer {
+                scaleX = scale * dismissScaleFactor
+                scaleY = scale * dismissScaleFactor
+                translationX = if (isZoomed) panX else 0f
+                translationY = if (isZoomed) panY else dragOffsetY
             },
         contentAlignment = Alignment.Center
     ) {
