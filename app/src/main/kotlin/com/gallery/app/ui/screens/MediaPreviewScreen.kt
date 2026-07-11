@@ -837,7 +837,15 @@ fun OpenStreetMap(
         }
     }
 
-    var selectedStyle by remember { mutableStateOf(TileSourceFactory.MAPNIK) }
+    val esriSatellite = remember {
+        org.osmdroid.tileprovider.tilesource.XYTileSource(
+            "Satelit",
+            0, 19, 256, ".jpg",
+            arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/")
+        )
+    }
+
+    var selectedStyle by remember { mutableStateOf<org.osmdroid.tileprovider.tilesource.ITileSource>(TileSourceFactory.MAPNIK) }
     
     LaunchedEffect(latitude, longitude, selectedStyle) {
         mapView.setTileSource(selectedStyle)
@@ -945,7 +953,7 @@ fun OpenStreetMap(
             val styles = listOf(
                 "Standard" to TileSourceFactory.MAPNIK,
                 "Topo" to TileSourceFactory.USGS_TOPO,
-                "Cycle" to TileSourceFactory.CYCLEMAP
+                "Satelit" to esriSatellite
             )
             styles.forEach { (label, source) ->
                 val isSelected = selectedStyle == source
