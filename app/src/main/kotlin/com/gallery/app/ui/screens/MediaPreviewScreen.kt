@@ -94,6 +94,30 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.outlined.TextFields
+import androidx.compose.material.icons.outlined.SdStorage
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.AspectRatio
+import androidx.compose.material.icons.outlined.Photo
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.SlowMotionVideo
+import androidx.compose.material.icons.outlined.Factory
+import androidx.compose.material.icons.outlined.Camera
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Iso
+import androidx.compose.material.icons.outlined.CenterFocusStrong
+import androidx.compose.material.icons.outlined.LocationOn
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebChromeClient
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem as Media3MediaItem
@@ -408,7 +432,7 @@ fun MediaPreviewScreen(
         if (showDetailsSheet && topItem != null) {
             ModalBottomSheet(
                 onDismissRequest = { showDetailsSheet = false },
-                containerColor = MaterialTheme.colorScheme.surface,
+                containerColor = if (isSystemInDarkTheme()) Color(0xFF1C1C1E) else Color(0xFFF2F2F7),
                 tonalElevation = 2.dp
             ) {
                 MediaDetailsContent(item = topItem)
@@ -782,6 +806,188 @@ fun VideoControls(player: ExoPlayer, modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun OpenStreetMap(
+    latitude: Double,
+    longitude: Double,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    AndroidView(
+        factory = { ctx ->
+            WebView(ctx).apply {
+                settings.javaScriptEnabled = true
+                settings.useWideViewPort = true
+                settings.loadWithOverviewMode = true
+                settings.domStorageEnabled = true
+                
+                webViewClient = WebViewClient()
+                webChromeClient = WebChromeClient()
+                
+                val mapHtml = """
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                        <style>
+                            html, body {
+                                height: 100%;
+                                margin: 0;
+                                padding: 0;
+                                background-color: ${if (isDark) "#1c1c1e" else "#f2f2f7"};
+                            }
+                            #map {
+                                height: 100%;
+                                width: 100%;
+                            }
+                            .leaflet-bar {
+                                box-shadow: 0 1px 5px rgba(0,0,0,0.15) !important;
+                                border-radius: 8px !important;
+                            }
+                            .leaflet-control-attribution {
+                                display: none !important;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div id="map"></div>
+                        <script>
+                            var map = L.map('map', {
+                                center: [$latitude, $longitude],
+                                zoom: 14,
+                                zoomControl: false,
+                                attributionControl: false
+                            });
+                            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                maxZoom: 19
+                            }).addTo(map);
+                            
+                            var customIcon = L.divIcon({
+                                className: 'custom-div-icon',
+                                html: "<div style='background-color:#007AFF; width: 14px; height: 14px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.4);'></div>",
+                                iconSize: [20, 20],
+                                iconAnchor: [10, 10]
+                            });
+                            
+                            L.marker([$latitude, $longitude], {icon: customIcon}).addTo(map);
+                        </script>
+                    </body>
+                    </html>
+                """.trimIndent()
+                
+                loadDataWithBaseURL("https://openstreetmap.org", mapHtml, "text/html", "UTF-8", null)
+            }
+        },
+        modifier = modifier
+    )
+}
+
+data class IconConfig(
+    val icon: ImageVector,
+    val tintColor: Color,
+    val backgroundColor: Color
+)
+
+@Composable
+fun getFieldIconConfig(label: String): IconConfig {
+    val isDark = isSystemInDarkTheme()
+    return when (label) {
+        "Nama" -> IconConfig(
+            icon = Icons.Outlined.TextFields,
+            tintColor = Color(0xFF007AFF), // iOS Blue
+            backgroundColor = if (isDark) Color(0xFF007AFF).copy(alpha = 0.15f) else Color(0xFFE8F2FF)
+        )
+        "Ukuran" -> IconConfig(
+            icon = Icons.Outlined.SdStorage,
+            tintColor = Color(0xFF34C759), // iOS Green
+            backgroundColor = if (isDark) Color(0xFF34C759).copy(alpha = 0.15f) else Color(0xFFEAF9EE)
+        )
+        "Jenis" -> IconConfig(
+            icon = Icons.Outlined.Category,
+            tintColor = Color(0xFF5856D6), // iOS Purple
+            backgroundColor = if (isDark) Color(0xFF5856D6).copy(alpha = 0.15f) else Color(0xFFEEEDFC)
+        )
+        "Folder" -> IconConfig(
+            icon = Icons.Outlined.Folder,
+            tintColor = Color(0xFFFF9500), // iOS Orange
+            backgroundColor = if (isDark) Color(0xFFFF9500).copy(alpha = 0.15f) else Color(0xFFFFF4E5)
+        )
+        "Ditambahkan", "Diambil" -> IconConfig(
+            icon = Icons.Outlined.CalendarMonth,
+            tintColor = Color(0xFFFF2D55), // iOS Pink
+            backgroundColor = if (isDark) Color(0xFFFF2D55).copy(alpha = 0.15f) else Color(0xFFFFEBF0)
+        )
+        "Dimensi" -> IconConfig(
+            icon = Icons.Outlined.AspectRatio,
+            tintColor = Color(0xFF007AFF), // iOS Blue
+            backgroundColor = if (isDark) Color(0xFF007AFF).copy(alpha = 0.15f) else Color(0xFFE8F2FF)
+        )
+        "Resolusi" -> IconConfig(
+            icon = Icons.Outlined.Photo,
+            tintColor = Color(0xFF32ADE6), // iOS Teal
+            backgroundColor = if (isDark) Color(0xFF32ADE6).copy(alpha = 0.15f) else Color(0xFFEBF7FC)
+        )
+        "Durasi" -> IconConfig(
+            icon = Icons.Outlined.Timer,
+            tintColor = Color(0xFFFF3B30), // iOS Red
+            backgroundColor = if (isDark) Color(0xFFFF3B30).copy(alpha = 0.15f) else Color(0xFFFFEBEA)
+        )
+        "Bitrate" -> IconConfig(
+            icon = Icons.Outlined.Speed,
+            tintColor = Color(0xFF8E8E93), // iOS Gray
+            backgroundColor = if (isDark) Color(0xFF8E8E93).copy(alpha = 0.15f) else Color(0xFFF2F2F7)
+        )
+        "Frame rate" -> IconConfig(
+            icon = Icons.Outlined.SlowMotionVideo,
+            tintColor = Color(0xFF5856D6), // iOS Purple
+            backgroundColor = if (isDark) Color(0xFF5856D6).copy(alpha = 0.15f) else Color(0xFFEEEDFC)
+        )
+        "Produsen" -> IconConfig(
+            icon = Icons.Outlined.Factory,
+            tintColor = Color(0xFF8E8E93), // iOS Gray
+            backgroundColor = if (isDark) Color(0xFF8E8E93).copy(alpha = 0.15f) else Color(0xFFF2F2F7)
+        )
+        "Model" -> IconConfig(
+            icon = Icons.Outlined.CameraAlt,
+            tintColor = Color(0xFF007AFF), // iOS Blue
+            backgroundColor = if (isDark) Color(0xFF007AFF).copy(alpha = 0.15f) else Color(0xFFE8F2FF)
+        )
+        "Apertur" -> IconConfig(
+            icon = Icons.Outlined.Camera,
+            tintColor = Color(0xFF34C759), // iOS Green
+            backgroundColor = if (isDark) Color(0xFF34C759).copy(alpha = 0.15f) else Color(0xFFEAF9EE)
+        )
+        "Kecepatan rana" -> IconConfig(
+            icon = Icons.Outlined.Timer,
+            tintColor = Color(0xFFFF9500), // iOS Orange
+            backgroundColor = if (isDark) Color(0xFFFF9500).copy(alpha = 0.15f) else Color(0xFFFFF4E5)
+        )
+        "ISO" -> IconConfig(
+            icon = Icons.Outlined.Iso,
+            tintColor = Color(0xFFFF2D55), // iOS Pink
+            backgroundColor = if (isDark) Color(0xFFFF2D55).copy(alpha = 0.15f) else Color(0xFFFFEBF0)
+        )
+        "Panjang fokus" -> IconConfig(
+            icon = Icons.Outlined.CenterFocusStrong,
+            tintColor = Color(0xFF5856D6), // iOS Purple
+            backgroundColor = if (isDark) Color(0xFF5856D6).copy(alpha = 0.15f) else Color(0xFFEEEDFC)
+        )
+        "Koordinat" -> IconConfig(
+            icon = Icons.Outlined.LocationOn,
+            tintColor = Color(0xFF34C759), // iOS Green
+            backgroundColor = if (isDark) Color(0xFF34C759).copy(alpha = 0.15f) else Color(0xFFEAF9EE)
+        )
+        else -> IconConfig(
+            icon = Icons.Outlined.Info,
+            tintColor = Color(0xFF8E8E93),
+            backgroundColor = if (isDark) Color(0xFF8E8E93).copy(alpha = 0.15f) else Color(0xFFF2F2F7)
+        )
+    }
+}
+
+@Composable
 private fun MediaDetailsContent(item: MediaItem) {
     val context = LocalContext.current
     val metadata by produceState<MediaMetadata?>(initialValue = null, item.id) {
@@ -791,86 +997,168 @@ private fun MediaDetailsContent(item: MediaItem) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
         Text(
-            text = "Info",
+            text = "Informasi Detail",
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.Bold,
+            color = if (isSystemInDarkTheme()) Color.White else Color.Black,
+            modifier = Modifier.padding(bottom = 16.dp)
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         val data = metadata
         if (data == null) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 32.dp),
+                    .padding(vertical = 48.dp),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    color = if (isSystemInDarkTheme()) Color(0xFF0A84FF) else Color(0xFF007AFF)
+                )
             }
         } else {
-            data.sections.forEach { section ->
-                MetadataSectionCard(section)
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
             val lat = data.latitude
             val lon = data.longitude
-            if (lat != null && lon != null) {
-                TextButton(
-                    onClick = { MediaActions.openLocation(context, lat, lon, item.displayName) }
-                ) {
-                    Icon(Icons.Outlined.Map, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Lihat di peta")
+
+            data.sections.forEach { section ->
+                MetadataSectionCard(section)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (section.title == "Lokasi" && lat != null && lon != null) {
+                    Text(
+                        text = "Peta Lokasi",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSystemInDarkTheme()) Color(0xFF0A84FF) else Color(0xFF007AFF),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (isSystemInDarkTheme()) Color(0xFF1C1C1E) else Color.White)
+                    ) {
+                        OpenStreetMap(
+                            latitude = lat,
+                            longitude = lon,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(12.dp)
+                                .clickable {
+                                    MediaActions.openLocation(context, lat, lon, item.displayName)
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Map,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Buka Peta",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
 @Composable
 private fun MetadataSectionCard(section: MetadataSection) {
-    Text(
-        text = section.title,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary
-    )
-    Spacer(modifier = Modifier.height(6.dp))
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            section.fields.forEachIndexed { index, field ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 10.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Text(
-                        text = field.label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(110.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = field.value,
-                        style = MaterialTheme.typography.bodyMedium,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                if (index < section.fields.lastIndex) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    val isDark = isSystemInDarkTheme()
+    val cardBackground = if (isDark) Color(0xFF1C1C1E) else Color.White
+    val textColor = if (isDark) Color.White else Color.Black
+    val labelColor = Color(0xFF8E8E93)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = section.title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = if (isDark) Color(0xFF0A84FF) else Color(0xFF007AFF),
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Surface(
+            color = cardBackground,
+            shape = RoundedCornerShape(14.dp),
+            tonalElevation = 1.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                section.fields.forEachIndexed { index, field ->
+                    val iconConfig = getFieldIconConfig(field.label)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .background(iconConfig.backgroundColor, shape = RoundedCornerShape(7.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = iconConfig.icon,
+                                contentDescription = null,
+                                tint = iconConfig.tintColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Text(
+                            text = field.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Normal,
+                            color = textColor,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = field.value,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = labelColor,
+                            textAlign = TextAlign.End,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1.5f)
+                        )
+                    }
+                    if (index < section.fields.lastIndex) {
+                        HorizontalDivider(
+                            color = if (isDark) Color(0xFF38383A) else Color(0xFFE5E5EA),
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(start = 42.dp)
+                        )
+                    }
                 }
             }
         }

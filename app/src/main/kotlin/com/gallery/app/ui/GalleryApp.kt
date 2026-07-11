@@ -18,6 +18,9 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -152,7 +155,15 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                     Scaffold(
                         contentWindowInsets = WindowInsets(0.dp),
                         bottomBar = {
-                            NavigationBar {
+                            val isDark = isSystemInDarkTheme()
+                            val iosSelectedColor = if (isDark) Color(0xFF0A84FF) else Color(0xFF007AFF)
+                            val iosUnselectedColor = Color(0xFF8E8E93)
+                            val barContainerColor = if (isDark) Color(0xFF161616) else Color(0xFFF9F9F9)
+
+                            NavigationBar(
+                                containerColor = barContainerColor,
+                                tonalElevation = 8.dp
+                            ) {
                                 bottomNavItems.forEachIndexed { index, item ->
                                     val selected = pagerState.currentPage == index
 
@@ -170,7 +181,14 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                                             )
                                         },
                                         label = { Text(item.label) },
-                                        alwaysShowLabel = false, // Hides label text if not selected!
+                                        alwaysShowLabel = true, // iOS style
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = iosSelectedColor,
+                                            selectedTextColor = iosSelectedColor,
+                                            unselectedIconColor = iosUnselectedColor,
+                                            unselectedTextColor = iosUnselectedColor,
+                                            indicatorColor = Color.Transparent
+                                        )
                                     )
                                 }
                             }
