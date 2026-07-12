@@ -215,7 +215,7 @@ private fun LogList(
     }
 }
 
-private val ROW_STAMP = SimpleDateFormat("d MMM yyyy, HH:mm:ss", Locale("id", "ID"))
+private val ROW_STAMP = SimpleDateFormat("d MMM yyyy, HH:mm:ss", Locale.forLanguageTag("id-ID"))
 
 @Composable
 private fun LogRow(file: File, onClick: () -> Unit) {

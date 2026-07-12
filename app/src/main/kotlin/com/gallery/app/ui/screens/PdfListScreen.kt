@@ -267,7 +267,7 @@ private fun EmptyPdfHint() {
     }
 }
 
-private val PDF_DATE_FORMAT = SimpleDateFormat("d MMM yyyy", Locale("id", "ID"))
+private val PDF_DATE_FORMAT = SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("id-ID"))
 
 private fun pdfSubtitle(pdf: PdfItem): String {
     val size = formatBytes(pdf.size)

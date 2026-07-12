@@ -122,15 +122,25 @@ object CrashLogger {
         append("Android   : ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
     }
 
-    /** Baca logcat proses sendiri (tak perlu izin READ_LOGS). Best-effort. */
+    /**
+     * Baca logcat proses sendiri (tak perlu izin READ_LOGS). Best-effort.
+     *
+     * `-t N` membatasi ke N baris terakhir langsung di sumber, jadi buffer besar
+     * tak perlu dibaca seluruhnya ke memori. Prosesnya juga di-destroy eksplisit
+     * agar tak menyisakan child process.
+     */
     private fun readLogcat(): String {
+        var process: Process? = null
         return try {
-            val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "time"))
+            process = Runtime.getRuntime().exec(
+                arrayOf("logcat", "-d", "-v", "time", "-t", LOGCAT_MAX_LINES.toString())
+            )
             val lines = process.inputStream.bufferedReader().use { it.readLines() }
-            val tail = if (lines.size > LOGCAT_MAX_LINES) lines.takeLast(LOGCAT_MAX_LINES) else lines
-            if (tail.isEmpty()) "(logcat kosong)" else tail.joinToString("\n")
+            if (lines.isEmpty()) "(logcat kosong)" else lines.joinToString("\n")
         } catch (t: Throwable) {
             "(gagal membaca logcat: ${t.message})"
+        } finally {
+            runCatching { process?.destroy() }
         }
     }
 

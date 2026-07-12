@@ -41,7 +41,7 @@ enum class DateGrouping(val label: String) {
     YEARLY("Tahun")
 }
 
-private val ID_LOCALE = Locale("id", "ID")
+private val ID_LOCALE = Locale.forLanguageTag("id-ID")
 private val DAY_FORMATTER = DateTimeFormatter.ofPattern("d MMMM yyyy", ID_LOCALE)
 private val MONTH_FORMATTER = DateTimeFormatter.ofPattern("MMMM yyyy", ID_LOCALE)
 private val YEAR_FORMATTER = DateTimeFormatter.ofPattern("yyyy", ID_LOCALE)

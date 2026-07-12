@@ -412,7 +412,7 @@ private fun MapPhotoThumbnail(
             contentAlignment = Alignment.Center
         ) {
             val date = remember(geoItem.item.dateAdded) {
-                SimpleDateFormat("d MMM", Locale("id", "ID"))
+                SimpleDateFormat("d MMM", Locale.forLanguageTag("id-ID"))
                     .format(Date(geoItem.item.dateAdded * 1000))
             }
             Text(

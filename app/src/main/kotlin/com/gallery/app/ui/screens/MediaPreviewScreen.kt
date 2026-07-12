@@ -1300,12 +1300,12 @@ private fun MetadataSectionCard(section: MetadataSection) {
 
 private fun formatDate(epochSeconds: Long): String {
     val date = Date(epochSeconds * 1000)
-    return SimpleDateFormat("EEE, d MMM yyyy", Locale("id", "ID")).format(date)
+    return SimpleDateFormat("EEE, d MMM yyyy", Locale.forLanguageTag("id-ID")).format(date)
 }
 
 private fun formatTime(epochSeconds: Long): String {
     val date = Date(epochSeconds * 1000)
-    return SimpleDateFormat("HH.mm", Locale("id", "ID")).format(date)
+    return SimpleDateFormat("HH.mm", Locale.forLanguageTag("id-ID")).format(date)
 }
 
 private fun formatDuration(durationMs: Long): String {

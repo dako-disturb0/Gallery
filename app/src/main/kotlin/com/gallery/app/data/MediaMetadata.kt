@@ -197,7 +197,7 @@ object MetadataReader {
 
     private fun formatFullDate(epochSeconds: Long): String {
         if (epochSeconds <= 0) return "-"
-        val formatter = SimpleDateFormat("d MMM yyyy, HH.mm", Locale("id", "ID"))
+        val formatter = SimpleDateFormat("d MMM yyyy, HH.mm", Locale.forLanguageTag("id-ID"))
         return formatter.format(Date(epochSeconds * 1000))
     }
 
