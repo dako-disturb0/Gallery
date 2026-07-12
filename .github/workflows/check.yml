@@ -33,9 +33,10 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # Kompilasi Kotlin (app + unit test) — menangkap error kompilasi paling cepat.
+      # Kompilasi Kotlin (app + unit test + instrumented test) — menangkap error
+      # kompilasi paling cepat, termasuk kode androidTest, tanpa perlu emulator.
       - name: Compile Kotlin
-        run: ./gradlew compileDebugKotlin compileDebugUnitTestKotlin
+        run: ./gradlew compileDebugKotlin compileDebugUnitTestKotlin compileDebugAndroidTestKotlin
 
       # Lint Android: deprecation, potensi bug, resource. Tak menggagalkan build
       # otomatis di sini — laporan diunggah agar bisa ditinjau.
