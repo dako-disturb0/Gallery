@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Collections
+import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.PhotoLibrary
@@ -82,6 +83,7 @@ import com.gallery.app.ui.navigation.Screen
 import com.gallery.app.ui.screens.AlbumDetailScreen
 import com.gallery.app.ui.screens.AlbumsScreen
 import com.gallery.app.ui.screens.FavoritesScreen
+import com.gallery.app.ui.screens.LogScreen
 import com.gallery.app.ui.screens.MapsScreen
 import com.gallery.app.ui.screens.MediaPreviewScreen
 import com.gallery.app.ui.screens.PdfListScreen
@@ -250,6 +252,7 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                             onFavoritesClick = { navController.navigate("favorites_overlay") },
                             onSettingsClick = { navController.navigate("settings_overlay") },
                             onPdfClick = { navController.navigate("pdf_list_overlay") },
+                            onLogClick = { navController.navigate("log_overlay") },
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
                     }
@@ -344,6 +347,11 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                         )
                     }
                 }
+
+                // ── Log & Diagnostik (push overlay) ──
+                composable("log_overlay") {
+                    LogScreen(onBackClick = { navController.popBackStack() })
+                }
             }
         }
     }
@@ -362,6 +370,7 @@ private fun FloatingPillNav(
     onFavoritesClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onPdfClick: () -> Unit,
+    onLogClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isDark = isSystemInDarkTheme()
@@ -506,6 +515,11 @@ private fun FloatingPillNav(
                         text = { Text("PDF") },
                         onClick = { showMoreMenu = false; onPdfClick() },
                         leadingIcon = { Icon(Icons.Outlined.PictureAsPdf, null, modifier = Modifier.size(17.dp)) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Log & Diagnostik") },
+                        onClick = { showMoreMenu = false; onLogClick() },
+                        leadingIcon = { Icon(Icons.Outlined.BugReport, null, modifier = Modifier.size(17.dp)) }
                     )
                     DropdownMenuItem(
                         text = { Text("Setelan") },
