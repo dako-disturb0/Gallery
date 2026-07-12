@@ -2,16 +2,12 @@ package com.gallery.app.ui.navigation
 
 import android.net.Uri
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.GridView
-import androidx.compose.material.icons.outlined.PhotoAlbum
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.PhotoAlbum
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.outlined.Collections
+import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.rounded.Collections
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -20,22 +16,24 @@ import androidx.compose.ui.graphics.vector.ImageVector
 sealed class Screen(val route: String) {
     data object Photos   : Screen("photos")
     data object Albums   : Screen("albums")
+    data object Maps     : Screen("maps")
     data object Search   : Screen("search")
     data object Favorites: Screen("favorites")
     data object Settings : Screen("settings")
-    
+
     data object AlbumDetail : Screen("album_detail/{albumId}/{albumName}") {
         fun createRoute(albumId: String, albumName: String) =
             "album_detail/${Uri.encode(albumId)}/${Uri.encode(albumName)}"
     }
 
-    data object MediaPreview : Screen("media_preview/{itemId}?albumId={albumId}&isFavorite={isFavorite}") {
-        fun createRoute(itemId: Long, albumId: String? = null, isFavorite: Boolean = false): String {
+    data object MediaPreview : Screen("media_preview/{itemId}?albumId={albumId}&isFavorite={isFavorite}&fromMaps={fromMaps}") {
+        fun createRoute(itemId: Long, albumId: String? = null, isFavorite: Boolean = false, fromMaps: Boolean = false): String {
             return buildString {
                 append("media_preview/$itemId")
                 val params = mutableListOf<String>()
                 if (albumId != null) params.add("albumId=${Uri.encode(albumId)}")
                 if (isFavorite) params.add("isFavorite=true")
+                if (fromMaps) params.add("fromMaps=true")
                 if (params.isNotEmpty()) {
                     append("?")
                     append(params.joinToString("&"))
@@ -46,7 +44,8 @@ sealed class Screen(val route: String) {
 }
 
 /**
- * Item tab di NavigationBar bawah.
+ * Item tab di NavigationBar bawah (floating pill).
+ * Hanya 3 tab utama: Foto, Koleksi, Peta
  */
 data class NavItem(
     val screen: Screen,
@@ -59,31 +58,19 @@ val bottomNavItems = listOf(
     NavItem(
         screen        = Screen.Photos,
         label         = "Foto",
-        selectedIcon  = Icons.Rounded.GridView,
-        unselectedIcon= Icons.Outlined.GridView,
+        selectedIcon  = Icons.Rounded.PhotoLibrary,
+        unselectedIcon= Icons.Outlined.PhotoLibrary,
     ),
     NavItem(
         screen        = Screen.Albums,
-        label         = "Album",
-        selectedIcon  = Icons.Rounded.PhotoAlbum,
-        unselectedIcon= Icons.Outlined.PhotoAlbum,
+        label         = "Koleksi",
+        selectedIcon  = Icons.Rounded.Collections,
+        unselectedIcon= Icons.Outlined.Collections,
     ),
     NavItem(
-        screen        = Screen.Search,
-        label         = "Cari",
-        selectedIcon  = Icons.Rounded.Search,
-        unselectedIcon= Icons.Outlined.Search,
-    ),
-    NavItem(
-        screen        = Screen.Favorites,
-        label         = "Favorit",
-        selectedIcon  = Icons.Rounded.Favorite,
-        unselectedIcon= Icons.Outlined.FavoriteBorder,
-    ),
-    NavItem(
-        screen        = Screen.Settings,
-        label         = "Setelan",
-        selectedIcon  = Icons.Rounded.Settings,
-        unselectedIcon= Icons.Outlined.Settings,
+        screen        = Screen.Maps,
+        label         = "Peta",
+        selectedIcon  = Icons.Rounded.Map,
+        unselectedIcon= Icons.Outlined.Map,
     ),
 )

@@ -5,6 +5,7 @@ import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.gallery.app.data.Album
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.Instant
@@ -41,6 +43,8 @@ private val MONTH_FORMATTER = DateTimeFormatter.ofPattern("MMMM yyyy", ID_LOCALE
 private val YEAR_FORMATTER = DateTimeFormatter.ofPattern("yyyy", ID_LOCALE)
 private val WEEK_START_FORMATTER = DateTimeFormatter.ofPattern("d MMM", ID_LOCALE)
 private val WEEK_END_FORMATTER = DateTimeFormatter.ofPattern("d MMM yyyy", ID_LOCALE)
+
+private const val GEOTAG_BATCH_SIZE = 50
 
 class GalleryViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -80,6 +84,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         items.filter { it.isFavorite }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Geotagged items – populated lazily after loadMedia() completes
+    private val _geotaggedItems = MutableStateFlow<List<MediaItem>>(emptyList())
+    val geotaggedItems: StateFlow<List<MediaItem>> = _geotaggedItems.asStateFlow()
+
+    // Pending map item: set saat user tekan tombol Peta di MediaPreview
+    // GalleryApp membaca ini untuk switch ke tab Peta dan highlight item
+    private val _pendingMapItemId = MutableStateFlow(0L)
+    val pendingMapItemId: StateFlow<Long> = _pendingMapItemId.asStateFlow()
+
+    fun requestOpenInMap(itemId: Long) {
+        _pendingMapItemId.value = itemId
+    }
+
+    fun clearPendingMapItem() {
+        _pendingMapItemId.value = 0L
+    }
+
     private val contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
             refresh()
@@ -103,8 +124,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             _mediaItems.value = allMedia
             _albums.value = deriveAlbums(allMedia)
             _isLoading.value = false
+            // Geotag scan: jalankan concurrent setelah media selesai dimuat
+            loadGeotaggedItems(allMedia)
         }
     }
+
 
     private fun refresh() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -128,6 +152,52 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun deleteRequest(uris: List<android.net.Uri>) =
         repository.deleteRequest(uris)
+
+    /**
+     * Scans [items] for EXIF GPS coordinates (non-video only) in batches of
+     * [GEOTAG_BATCH_SIZE]. Each completed batch is merged into [_geotaggedItems]
+     * so the UI can start showing results progressively.
+     *
+     * Runs on [Dispatchers.IO].
+     */
+    fun loadGeotaggedItems(items: List<MediaItem>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Reset before starting a fresh scan
+            _geotaggedItems.value = emptyList()
+
+            val candidates = items.filter { !it.isVideo }
+            val resolver = getApplication<Application>().contentResolver
+
+            candidates.chunked(GEOTAG_BATCH_SIZE).forEach { batch ->
+                val geotaggedBatch = mutableListOf<MediaItem>()
+
+                for (item in batch) {
+                    try {
+                        resolver.openInputStream(item.uri)?.use { stream ->
+                            val exif = ExifInterface(stream)
+                            val latLon = FloatArray(2)
+                            if (exif.getLatLong(latLon)) {
+                                geotaggedBatch.add(item)
+                            }
+                        }
+                    } catch (_: Exception) {
+                        // Skip items that cannot be read or have no EXIF data
+                    }
+                }
+
+                if (geotaggedBatch.isNotEmpty()) {
+                    _geotaggedItems.update { current -> current + geotaggedBatch }
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns the [MediaItem] with the given [id] from the geotagged list,
+     * or `null` if not found.
+     */
+    fun getGeotaggedItemById(id: Long): MediaItem? =
+        _geotaggedItems.value.firstOrNull { it.id == id }
 
     private fun deriveAlbums(items: List<MediaItem>): List<Album> {
         return items

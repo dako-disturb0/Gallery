@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.gallery.app.data.MediaItem
@@ -49,6 +50,9 @@ fun MediaThumbnail(
                 .data(item.uri)
                 .crossfade(300)
                 .size(256)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .allowHardware(false)
                 .build(),
             contentDescription = item.displayName,
             contentScale = ContentScale.Crop,
@@ -80,6 +84,9 @@ fun AlbumCoverThumbnail(
             .data(coverUri)
             .crossfade(300)
             .size(512)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .allowHardware(false)
             .build(),
         contentDescription = null,
         contentScale = ContentScale.Crop,

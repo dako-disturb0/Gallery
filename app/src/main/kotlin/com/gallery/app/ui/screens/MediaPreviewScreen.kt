@@ -165,7 +165,8 @@ fun MediaPreviewScreen(
     favoritesList: List<MediaItem>,
     onBackClick: () -> Unit,
     onFavoriteRequest: (List<Uri>, Boolean) -> IntentSender?,
-    onDeleteRequest: (List<Uri>) -> IntentSender?
+    onDeleteRequest: (List<Uri>) -> IntentSender?,
+    onMapClick: ((MediaItem) -> Unit)? = null
 ) {
     val context = LocalContext.current
 
@@ -432,6 +433,12 @@ fun MediaPreviewScreen(
                     }
                     BottomAction(Icons.Outlined.Edit, "Edit") {
                         topItem?.let { MediaActions.edit(context, it) }
+                    }
+                    // Tombol Peta: hanya tampil jika item punya geotag DAN onMapClick tersedia
+                    if (onMapClick != null) {
+                        BottomAction(Icons.Outlined.Map, "Peta") {
+                            topItem?.let { onMapClick(it) }
+                        }
                     }
                     BottomAction(Icons.Outlined.Info, "Detail") { showDetailsSheet = true }
                     BottomAction(Icons.Outlined.Delete, "Hapus") {
@@ -1125,54 +1132,49 @@ private fun MediaDetailsContent(item: MediaItem) {
                 MetadataSectionCard(section)
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Jika ada koordinat, tampilkan tombol buka di peta eksternal (MapView dipindah ke tab Peta)
                 if (section.title == "Lokasi" && lat != null && lon != null) {
-                    Text(
-                        text = "Peta Lokasi",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isSystemInDarkTheme()) Color(0xFF0A84FF) else Color(0xFF007AFF),
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(if (isSystemInDarkTheme()) Color(0xFF1C1C1E) else Color.White)
+                    Surface(
+                        color = if (isSystemInDarkTheme()) Color(0xFF1C1C1E) else Color.White,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        OpenStreetMap(
-                            latitude = lat,
-                            longitude = lon,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        Surface(
-                            color = Color.Black.copy(alpha = 0.6f),
-                            shape = RoundedCornerShape(8.dp),
+                        Row(
                             modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(12.dp)
-                                .clickable {
-                                    MediaActions.openLocation(context, lat, lon, item.displayName)
-                                }
+                                .fillMaxWidth()
+                                .clickable { MediaActions.openLocation(context, lat, lon, item.displayName) }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .background(
+                                        color = if (isSystemInDarkTheme()) Color(0xFF34C759).copy(alpha = 0.15f) else Color(0xFFEAF9EE),
+                                        shape = RoundedCornerShape(7.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Map,
                                     contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Buka Peta",
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Medium
+                                    tint = Color(0xFF34C759),
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Buka di Aplikasi Peta",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (isSystemInDarkTheme()) Color.White else Color.Black,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                imageVector = Icons.Outlined.OpenInNew,
+                                contentDescription = null,
+                                tint = Color(0xFF8E8E93),
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
