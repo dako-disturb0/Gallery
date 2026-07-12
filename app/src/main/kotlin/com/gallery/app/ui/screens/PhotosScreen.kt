@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import coil3.request.crossfade
 import com.gallery.app.data.MediaItem
 import com.gallery.app.ui.components.ShimmerBox
