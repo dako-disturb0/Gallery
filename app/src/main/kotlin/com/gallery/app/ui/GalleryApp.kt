@@ -297,7 +297,8 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                         favorites = favorites,
                         onMediaClick = { item ->
                             navController.navigate(Screen.MediaPreview.createRoute(item.id, isFavorite = true))
-                        }
+                        },
+                        onBackClick = { navController.popBackStack() }
                     )
                 }
 
@@ -305,7 +306,8 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                 composable("settings_overlay") {
                     SettingsScreen(
                         currentGrouping = dateGrouping,
-                        onGroupingChange = viewModel::setDateGrouping
+                        onGroupingChange = viewModel::setDateGrouping,
+                        onBackClick = { navController.popBackStack() }
                     )
                 }
             }

@@ -167,6 +167,9 @@ fun MapsScreen(
     // OSMDroid perlu onResume/onPause untuk start/stop thread tile & lokasi.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
+        // Panggil segera: MapView dibuat setelah lifecycle sudah RESUMED, jadi
+        // observer tidak akan mengirim ON_RESUME awal untuk memulai unduh tile.
+        mapView.onResume()
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> mapView.onResume()
