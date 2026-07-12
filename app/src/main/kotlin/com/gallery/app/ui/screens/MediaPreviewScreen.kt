@@ -137,7 +137,8 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.gallery.app.data.MediaActions
@@ -508,6 +509,13 @@ private fun ZoomablePage(
     var panY by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
 
+    // Rasio aspek asli foto — dipakai untuk menghitung batas pan sesuai area
+    // gambar yang benar-benar tampil (ContentScale.Fit = ada letterbox), bukan
+    // seluruh layar. Tanpa ini, zoom bisa menggeser gambar ke area hitam.
+    val imgAspect = remember(item.width, item.height) {
+        if (item.width > 0 && item.height > 0) item.width.toFloat() / item.height.toFloat() else 1f
+    }
+
     LaunchedEffect(isSelected) {
         if (!isSelected && scale != 1f) {
             scale = 1f
@@ -565,8 +573,11 @@ private fun ZoomablePage(
                                             onZoomChanged(false)
                                         } else {
                                             val targetScale = 2.5f
-                                            val maxPanX = size.width * (targetScale - 1f) / 2f
-                                            val maxPanY = size.height * (targetScale - 1f) / 2f
+                                            val (imgW, imgH) = displayedImageSize(
+                                                size.width.toFloat(), size.height.toFloat(), imgAspect
+                                            )
+                                            val maxPanX = imgW * (targetScale - 1f) / 2f
+                                            val maxPanY = imgH * (targetScale - 1f) / 2f
                                             val targetPanX = (-tapXFromCenter * (targetScale - 1f)).coerceIn(-maxPanX, maxPanX)
                                             val targetPanY = (-tapYFromCenter * (targetScale - 1f)).coerceIn(-maxPanY, maxPanY)
 
@@ -625,8 +636,11 @@ private fun ZoomablePage(
                                 val newScale = (scale * zoom).coerceIn(1f, 5f)
                                 scale = newScale
                                 if (scale > 1.01f) {
-                                    val maxPanX = size.width * (scale - 1) / 2f
-                                    val maxPanY = size.height * (scale - 1) / 2f
+                                    val (imgW, imgH) = displayedImageSize(
+                                        size.width.toFloat(), size.height.toFloat(), imgAspect
+                                    )
+                                    val maxPanX = imgW * (scale - 1) / 2f
+                                    val maxPanY = imgH * (scale - 1) / 2f
                                     panX = (panX + pan.x).coerceIn(-maxPanX, maxPanX)
                                     panY = (panY + pan.y).coerceIn(-maxPanY, maxPanY)
                                 } else {
@@ -648,16 +662,39 @@ private fun ZoomablePage(
             },
         contentAlignment = Alignment.Center
     ) {
-        AsyncImage(
+        SubcomposeAsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(item.uri)
                 .crossfade(true)
+                .size(2560)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
                 .build(),
             contentDescription = item.displayName,
             contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            loading = {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        color = Color.White.copy(alpha = 0.7f),
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            }
         )
     }
+}
+
+/**
+ * Ukuran gambar yang benar-benar tampil di dalam box [boxW]×[boxH] dengan
+ * ContentScale.Fit (letterbox). Dipakai untuk membatasi pan agar gambar tidak
+ * bisa digeser keluar ke area kosong (black bar).
+ */
+private fun displayedImageSize(boxW: Float, boxH: Float, aspect: Float): Pair<Float, Float> {
+    if (boxW <= 0f || boxH <= 0f) return boxW to boxH
+    val boxAspect = boxW / boxH
+    return if (aspect > boxAspect) boxW to (boxW / aspect) else (boxH * aspect) to boxH
 }
 
 @AndroidOptIn(UnstableApi::class)
