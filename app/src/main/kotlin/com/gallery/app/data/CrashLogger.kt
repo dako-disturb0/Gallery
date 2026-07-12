@@ -82,6 +82,49 @@ object CrashLogger {
         "(gagal membaca berkas log)"
     }
 
+    /**
+     * Representasi terstruktur sebuah laporan, untuk ditampilkan ala "Laporan
+     * galat": judul, daftar Info (key→value), dan Detail (stacktrace + logcat).
+     */
+    data class ParsedReport(
+        val title: String,
+        val info: List<Pair<String, String>>,
+        val detail: String,
+        val raw: String,
+    )
+
+    /** Parse berkas laporan (format yang ditulis [buildReport]) menjadi terstruktur. */
+    fun parseReport(file: File): ParsedReport = parseText(readReport(file))
+
+    internal fun parseText(raw: String): ParsedReport {
+        val lines = raw.lines()
+
+        // Judul: teks setelah "— " pada baris pertama "=== Gallery — X ===".
+        val title = lines.firstOrNull()
+            ?.substringAfter("— ", "")
+            ?.substringBeforeLast(" ===")
+            ?.ifBlank { "Laporan galat" }
+            ?: "Laporan galat"
+
+        // Info: baris "Kunci : nilai" pada blok header (sebelum baris kosong pertama).
+        val info = mutableListOf<Pair<String, String>>()
+        for (line in lines.drop(1)) {
+            if (line.isBlank()) break
+            val idx = line.indexOf(':')
+            if (idx > 0) {
+                info += line.take(idx).trim() to line.substring(idx + 1).trim()
+            }
+        }
+
+        // Detail: mulai dari penanda seksi pertama ("--- ... ---").
+        val detailStart = lines.indexOfFirst { it.startsWith("--- ") }
+        val detail = if (detailStart >= 0) {
+            lines.drop(detailStart).joinToString("\n").trim()
+        } else raw.trim()
+
+        return ParsedReport(title = title, info = info, detail = detail, raw = raw)
+    }
+
     fun clearAll(context: Context) {
         listReports(context).forEach { runCatching { it.delete() } }
     }
