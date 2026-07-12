@@ -1,5 +1,6 @@
 package com.gallery.app.data
 
+import android.app.RecoverableSecurityException
 import android.content.ContentUris
 import android.content.Context
 import android.content.IntentSender
@@ -7,11 +8,56 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 
+/**
+ * Hasil permintaan hapus. Di Android 11+ (dan Android 10 untuk media milik app
+ * lain) sistem meminta konfirmasi lewat [NeedsConsent]. Di Android 10 ke bawah
+ * media dihapus langsung ([Deleted]).
+ */
+sealed interface DeleteResult {
+    /** Media sudah dihapus langsung (Android 10 ke bawah). */
+    data object Deleted : DeleteResult
+    /** Perlu konfirmasi user via IntentSender (Android 11+ / RecoverableSecurityException). */
+    data class NeedsConsent(val intentSender: IntentSender) : DeleteResult
+    /** Gagal menghapus. */
+    data object Failed : DeleteResult
+}
+
 class MediaRepository(private val context: Context) {
 
-    fun deleteRequest(uris: List<Uri>): IntentSender? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
-        return MediaStore.createDeleteRequest(context.contentResolver, uris).intentSender
+    fun deleteRequest(uris: List<Uri>): DeleteResult {
+        if (uris.isEmpty()) return DeleteResult.Failed
+        val resolver = context.contentResolver
+        return when {
+            // Android 11+ : sistem menangani penghapusan setelah user setuju.
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                try {
+                    val sender = MediaStore.createDeleteRequest(resolver, uris).intentSender
+                    DeleteResult.NeedsConsent(sender)
+                } catch (e: Exception) {
+                    DeleteResult.Failed
+                }
+            }
+            // Android 10 : coba hapus langsung; jika bukan milik app → minta izin.
+            Build.VERSION.SDK_INT == Build.VERSION_CODES.Q -> {
+                try {
+                    uris.forEach { resolver.delete(it, null, null) }
+                    DeleteResult.Deleted
+                } catch (e: RecoverableSecurityException) {
+                    DeleteResult.NeedsConsent(e.userAction.actionIntent.intentSender)
+                } catch (e: Exception) {
+                    DeleteResult.Failed
+                }
+            }
+            // Android 7.1–9 : hapus langsung (butuh WRITE_EXTERNAL_STORAGE).
+            else -> {
+                try {
+                    uris.forEach { resolver.delete(it, null, null) }
+                    DeleteResult.Deleted
+                } catch (e: Exception) {
+                    DeleteResult.Failed
+                }
+            }
+        }
     }
 
     fun favoriteRequest(uris: List<Uri>, favorite: Boolean): IntentSender? {

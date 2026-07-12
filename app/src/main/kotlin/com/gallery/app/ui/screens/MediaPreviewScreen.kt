@@ -141,6 +141,7 @@ import coil3.compose.SubcomposeAsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.gallery.app.data.DeleteResult
 import com.gallery.app.data.MediaActions
 import com.gallery.app.data.MediaItem
 import com.gallery.app.data.MediaMetadata
@@ -166,7 +167,7 @@ fun MediaPreviewScreen(
     favoritesList: List<MediaItem>,
     onBackClick: () -> Unit,
     onFavoriteRequest: (List<Uri>, Boolean) -> IntentSender?,
-    onDeleteRequest: (List<Uri>) -> IntentSender?,
+    onDeleteRequest: (List<Uri>) -> DeleteResult,
     onMapClick: ((MediaItem) -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -226,11 +227,13 @@ fun MediaPreviewScreen(
     }
 
     fun requestDelete(target: MediaItem) {
-        val sender = onDeleteRequest(listOf(target.uri))
-        if (sender != null) {
-            deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
-        } else {
-            Toast.makeText(context, "Menghapus butuh Android 11+", Toast.LENGTH_SHORT).show()
+        when (val result = onDeleteRequest(listOf(target.uri))) {
+            is DeleteResult.NeedsConsent ->
+                deleteLauncher.launch(IntentSenderRequest.Builder(result.intentSender).build())
+            is DeleteResult.Deleted ->
+                Toast.makeText(context, "Terhapus", Toast.LENGTH_SHORT).show()
+            is DeleteResult.Failed ->
+                Toast.makeText(context, "Gagal menghapus", Toast.LENGTH_SHORT).show()
         }
     }
 

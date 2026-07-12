@@ -9,6 +9,7 @@ import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.gallery.app.data.Album
+import com.gallery.app.data.DeleteResult
 import com.gallery.app.data.GeoMedia
 import com.gallery.app.data.MediaItem
 import com.gallery.app.data.MediaRepository
@@ -152,8 +153,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun favoriteRequest(uris: List<android.net.Uri>, favorite: Boolean) =
         repository.favoriteRequest(uris, favorite)
 
-    fun deleteRequest(uris: List<android.net.Uri>) =
-        repository.deleteRequest(uris)
+    fun deleteRequest(uris: List<android.net.Uri>): DeleteResult {
+        val result = repository.deleteRequest(uris)
+        // Penghapusan langsung (Android 10 ke bawah) tidak memicu perubahan yang
+        // otomatis ter-observe untuk file milik app, jadi refresh manual.
+        if (result is DeleteResult.Deleted) refresh()
+        return result
+    }
 
     /**
      * Scans [items] for EXIF GPS coordinates (non-video only) in batches of
