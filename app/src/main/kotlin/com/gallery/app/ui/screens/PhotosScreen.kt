@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -76,7 +77,7 @@ fun PhotosScreen(
                 columns = StaggeredGridCells.Fixed(3),
                 contentPadding = PaddingValues(
                     start = 2.dp, end = 2.dp,
-                    top = 56.dp + 2.dp,
+                    top = 72.dp,
                     bottom = 120.dp
                 ),
                 verticalItemSpacing = 2.dp,
@@ -124,7 +125,7 @@ fun PhotosScreen(
                 columns = StaggeredGridCells.Fixed(3),
                 contentPadding = PaddingValues(
                     start = 2.dp, end = 2.dp,
-                    top = 56.dp + 2.dp,
+                    top = 72.dp,
                     bottom = 120.dp  // ruang untuk floating pill
                 ),
                 verticalItemSpacing = 2.dp,
@@ -255,13 +256,10 @@ private fun DynamicMediaThumbnail(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val heightFactor = when {
-        aspectRatio >= 1.5f -> 0.6f   // wide landscape → lebih pendek
-        aspectRatio <= 0.6f -> 1.6f   // tall portrait → lebih tinggi
-        else -> 1f                     // normal/square
-    }
-    // Gunakan fillMaxWidth() — height diatur oleh staggered grid secara otomatis via aspectRatio
-    Box(modifier = modifier) {
+    // Clamp rasio agar tile tidak terlalu ekstrem, lalu biarkan staggered grid
+    // menentukan tinggi dari lebar kolom via modifier aspectRatio (masonry sejati).
+    val displayRatio = aspectRatio.coerceIn(0.6f, 1.5f)
+    Box(modifier = modifier.aspectRatio(displayRatio)) {
         SubcomposeAsyncImage(
             model = ImageRequest.Builder(context)
                 .data(item.uri)
@@ -273,13 +271,7 @@ private fun DynamicMediaThumbnail(
                 .build(),
             contentDescription = item.displayName,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                // Tinggi dinamis berdasarkan rasio aspek — clamp agar tidak terlalu ekstrem
-                .height(
-                    (80.dp * heightFactor * (1f / aspectRatio.coerceIn(0.4f, 2.5f))).coerceIn(60.dp, 200.dp)
-                ),
-            loading = { ShimmerBox(Modifier.fillMaxSize()) },
+            modifier = Modifier.fillMaxSize(),
             error = {
                 Box(
                     Modifier
@@ -315,12 +307,21 @@ private fun DynamicMediaThumbnail(
     }
 }
 
-/** Dari header panjang seperti "12 Juli 2026", kembalikan "12 Jul" saat isScrolled, atau versi lengkap saat idle */
+/**
+ * Saat idle kembalikan header apa adanya. Saat scroll, ringkas dengan membuang
+ * tahun (mis. "12 Juli 2026" → "12 Juli", "12 Jul - 18 Jul 2026" → "12 Jul - 18 Jul")
+ * sehingga rentang mingguan tetap utuh, tidak terpotong jadi dua token pertama.
+ */
 private fun shortDateFromHeader(header: String, isScrolled: Boolean): String {
     if (!isScrolled) return header
-    // Coba ambil 2 token pertama: "12 Jul"
-    val parts = header.trim().split(" ")
-    return if (parts.size >= 2) "${parts[0]} ${parts[1]}" else header
+    val trimmed = header.trim()
+    // Buang token tahun terakhir (4 digit) jika ada; sisanya dipertahankan penuh.
+    val tokens = trimmed.split(" ")
+    return if (tokens.size > 1 && tokens.last().matches(Regex("\\d{4}"))) {
+        tokens.dropLast(1).joinToString(" ").trim()
+    } else {
+        trimmed
+    }
 }
 
 private fun formatVideoDuration(durationMs: Long): String {

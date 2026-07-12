@@ -18,3 +18,15 @@ data class MediaItem(
 ) {
     val isVideo: Boolean get() = mimeType.startsWith("video/")
 }
+
+/**
+ * A [MediaItem] with its EXIF GPS coordinates already resolved. Produced once by
+ * the ViewModel during the geotag scan so the map layer never has to re-read EXIF.
+ */
+data class GeoMedia(
+    val item: MediaItem,
+    val lat: Double,
+    val lon: Double,
+) {
+    val id: Long get() = item.id
+}

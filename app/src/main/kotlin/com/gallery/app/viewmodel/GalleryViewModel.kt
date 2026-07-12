@@ -9,6 +9,7 @@ import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.gallery.app.data.Album
+import com.gallery.app.data.GeoMedia
 import com.gallery.app.data.MediaItem
 import com.gallery.app.data.MediaRepository
 import kotlinx.coroutines.Dispatchers
@@ -84,9 +85,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         items.filter { it.isFavorite }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Geotagged items – populated lazily after loadMedia() completes
-    private val _geotaggedItems = MutableStateFlow<List<MediaItem>>(emptyList())
-    val geotaggedItems: StateFlow<List<MediaItem>> = _geotaggedItems.asStateFlow()
+    // Geotagged items – populated lazily after loadMedia() completes.
+    // Each entry carries its resolved lat/lon so the map never re-reads EXIF.
+    private val _geotaggedItems = MutableStateFlow<List<GeoMedia>>(emptyList())
+    val geotaggedItems: StateFlow<List<GeoMedia>> = _geotaggedItems.asStateFlow()
 
     // Pending map item: set saat user tekan tombol Peta di MediaPreview
     // GalleryApp membaca ini untuk switch ke tab Peta dan highlight item
@@ -155,8 +157,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Scans [items] for EXIF GPS coordinates (non-video only) in batches of
-     * [GEOTAG_BATCH_SIZE]. Each completed batch is merged into [_geotaggedItems]
-     * so the UI can start showing results progressively.
+     * [GEOTAG_BATCH_SIZE], capturing the resolved lat/lon for each hit. Each
+     * completed batch is merged into [_geotaggedItems] so the UI can start
+     * showing results progressively without any second EXIF pass.
      *
      * Runs on [Dispatchers.IO].
      */
@@ -169,7 +172,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val resolver = getApplication<Application>().contentResolver
 
             candidates.chunked(GEOTAG_BATCH_SIZE).forEach { batch ->
-                val geotaggedBatch = mutableListOf<MediaItem>()
+                val geotaggedBatch = mutableListOf<GeoMedia>()
 
                 for (item in batch) {
                     try {
@@ -177,7 +180,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                             val exif = ExifInterface(stream)
                             val latLon = FloatArray(2)
                             if (exif.getLatLong(latLon)) {
-                                geotaggedBatch.add(item)
+                                geotaggedBatch.add(
+                                    GeoMedia(item, latLon[0].toDouble(), latLon[1].toDouble())
+                                )
                             }
                         }
                     } catch (_: Exception) {
@@ -191,13 +196,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
-
-    /**
-     * Returns the [MediaItem] with the given [id] from the geotagged list,
-     * or `null` if not found.
-     */
-    fun getGeotaggedItemById(id: Long): MediaItem? =
-        _geotaggedItems.value.firstOrNull { it.id == id }
 
     private fun deriveAlbums(items: List<MediaItem>): List<Album> {
         return items

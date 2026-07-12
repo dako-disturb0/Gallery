@@ -844,13 +844,7 @@ fun OpenStreetMap(
         }
     }
 
-    val esriSatellite = remember {
-        org.osmdroid.tileprovider.tilesource.XYTileSource(
-            "Satelit",
-            0, 19, 256, ".jpg",
-            arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/")
-        )
-    }
+    val esriSatellite = remember { com.gallery.app.ui.map.EsriSatelliteTileSource }
 
     var selectedStyle by remember { mutableStateOf<org.osmdroid.tileprovider.tilesource.ITileSource>(TileSourceFactory.MAPNIK) }
     
