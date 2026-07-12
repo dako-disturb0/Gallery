@@ -41,6 +41,11 @@ sealed class Screen(val route: String) {
             }
         }
     }
+
+    data object PdfViewer : Screen("pdf_viewer?uri={uri}&name={name}") {
+        fun createRoute(uri: String, name: String) =
+            "pdf_viewer?uri=${Uri.encode(uri)}&name=${Uri.encode(name)}"
+    }
 }
 
 /**

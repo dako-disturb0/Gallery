@@ -13,6 +13,8 @@ import com.gallery.app.data.DeleteResult
 import com.gallery.app.data.GeoMedia
 import com.gallery.app.data.MediaItem
 import com.gallery.app.data.MediaRepository
+import com.gallery.app.data.PdfItem
+import com.gallery.app.data.PdfRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -51,6 +53,13 @@ private const val GEOTAG_BATCH_SIZE = 50
 class GalleryViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = MediaRepository(application)
+    private val pdfRepository = PdfRepository(application)
+
+    private val _pdfs = MutableStateFlow<List<PdfItem>>(emptyList())
+    val pdfs: StateFlow<List<PdfItem>> = _pdfs.asStateFlow()
+
+    private val _isLoadingPdfs = MutableStateFlow(false)
+    val isLoadingPdfs: StateFlow<Boolean> = _isLoadingPdfs.asStateFlow()
 
     private val _mediaItems = MutableStateFlow<List<MediaItem>>(emptyList())
     val mediaItems: StateFlow<List<MediaItem>> = _mediaItems.asStateFlow()
@@ -132,6 +141,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+
+    /** Memuat daftar PDF di perangkat. Dipanggil saat layar PDF dibuka. */
+    fun loadPdfs() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoadingPdfs.value = true
+            _pdfs.value = pdfRepository.getAllPdfs()
+            _isLoadingPdfs.value = false
+        }
+    }
 
     private fun refresh() {
         viewModelScope.launch(Dispatchers.IO) {

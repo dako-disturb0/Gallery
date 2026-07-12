@@ -1,5 +1,6 @@
 package com.gallery.app.ui
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.outlined.Collections
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Collections
@@ -82,6 +84,8 @@ import com.gallery.app.ui.screens.AlbumsScreen
 import com.gallery.app.ui.screens.FavoritesScreen
 import com.gallery.app.ui.screens.MapsScreen
 import com.gallery.app.ui.screens.MediaPreviewScreen
+import com.gallery.app.ui.screens.PdfListScreen
+import com.gallery.app.ui.screens.PdfViewerScreen
 import com.gallery.app.ui.screens.PhotosScreen
 import com.gallery.app.ui.screens.SearchScreen
 import com.gallery.app.ui.screens.SettingsScreen
@@ -132,6 +136,8 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
     val dateGrouping by viewModel.dateGrouping.collectAsState()
     val geotaggedItems by viewModel.geotaggedItems.collectAsState()
     val pendingMapItemId by viewModel.pendingMapItemId.collectAsState()
+    val pdfs by viewModel.pdfs.collectAsState()
+    val isLoadingPdfs by viewModel.isLoadingPdfs.collectAsState()
 
     Scaffold(contentWindowInsets = WindowInsets(0.dp)) { innerPadding ->
         Box(
@@ -243,6 +249,7 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                             onGroupingChange = viewModel::setDateGrouping,
                             onFavoritesClick = { navController.navigate("favorites_overlay") },
                             onSettingsClick = { navController.navigate("settings_overlay") },
+                            onPdfClick = { navController.navigate("pdf_list_overlay") },
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
                     }
@@ -310,6 +317,33 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                         onBackClick = { navController.popBackStack() }
                     )
                 }
+
+                // ── PDF: daftar dokumen (push overlay) ──
+                composable("pdf_list_overlay") {
+                    LaunchedEffect(Unit) { viewModel.loadPdfs() }
+                    PdfListScreen(
+                        pdfs = pdfs,
+                        isLoading = isLoadingPdfs,
+                        onPdfClick = { uri, name ->
+                            navController.navigate(Screen.PdfViewer.createRoute(uri.toString(), name))
+                        },
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                // ── PDF: penampil dokumen ──
+                composable(Screen.PdfViewer.route) { back ->
+                    val uriStr = back.arguments?.getString("uri")
+                    val name = back.arguments?.getString("name") ?: "Dokumen"
+                    val uri = uriStr?.let { Uri.parse(it) }
+                    if (uri != null) {
+                        PdfViewerScreen(
+                            uri = uri,
+                            title = name,
+                            onBackClick = { navController.popBackStack() }
+                        )
+                    }
+                }
             }
         }
     }
@@ -327,6 +361,7 @@ private fun FloatingPillNav(
     onGroupingChange: (DateGrouping) -> Unit,
     onFavoritesClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onPdfClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isDark = isSystemInDarkTheme()
@@ -466,6 +501,11 @@ private fun FloatingPillNav(
                         text = { Text("Favorit") },
                         onClick = { showMoreMenu = false; onFavoritesClick() },
                         leadingIcon = { Icon(Icons.Outlined.FavoriteBorder, null, modifier = Modifier.size(17.dp)) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("PDF") },
+                        onClick = { showMoreMenu = false; onPdfClick() },
+                        leadingIcon = { Icon(Icons.Outlined.PictureAsPdf, null, modifier = Modifier.size(17.dp)) }
                     )
                     DropdownMenuItem(
                         text = { Text("Setelan") },
