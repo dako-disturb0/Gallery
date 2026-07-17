@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,11 +33,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.LocationOff
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -61,13 +67,18 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil3.compose.SubcomposeAsyncImage
-import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.gallery.app.data.GeoMedia
 import com.gallery.app.data.MediaItem
 import com.gallery.app.ui.components.ShimmerBox
 import com.gallery.app.ui.map.EsriSatelliteTileSource
+import com.gallery.app.ui.theme.MapChipSelectedBg
+import com.gallery.app.ui.theme.MapChipSelectedText
+import com.gallery.app.ui.theme.MapChipUnselectedBg
+import com.gallery.app.ui.theme.MapChipUnselectedText
+import com.gallery.app.ui.theme.MarkerDefault
+import com.gallery.app.ui.theme.MarkerSelected
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -78,6 +89,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** Max zoom for ESRI satellite tiles (beyond this → "data not available"). */
+private const val SATELLITE_MAX_ZOOM = 18.0
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapsScreen(
     geotaggedItems: List<GeoMedia>,
@@ -87,7 +102,6 @@ fun MapsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Koordinat sudah di-resolve di ViewModel saat scan geotag — tidak perlu baca EXIF lagi.
     val resolvedItems = geotaggedItems
 
     var selectedItem by remember(selectedItemId, resolvedItems) {
@@ -99,7 +113,6 @@ fun MapsScreen(
 
     val listState = rememberLazyListState()
 
-    // MapView
     val mapView = remember {
         MapView(context).apply {
             Configuration.getInstance().userAgentValue = context.packageName
@@ -113,22 +126,26 @@ fun MapsScreen(
     var selectedStyle by remember {
         mutableStateOf<org.osmdroid.tileprovider.tilesource.ITileSource>(TileSourceFactory.MAPNIK)
     }
+    val isSatellite = selectedStyle == esriSatellite
 
-    // Tambahkan marker & navigate saat data siap.
-    // Keyed on selectedItem juga agar highlight marker ikut ter-update saat pilihan berubah.
     LaunchedEffect(resolvedItems, selectedStyle, selectedItem) {
         if (resolvedItems.isEmpty()) return@LaunchedEffect
         mapView.setTileSource(selectedStyle)
         mapView.overlays.clear()
 
-        // Tambah marker untuk setiap item
         resolvedItems.forEach { geoItem ->
             val marker = Marker(mapView).apply {
                 position = GeoPoint(geoItem.lat, geoItem.lon)
                 val isSelected = geoItem.id == selectedItem?.id
                 val markerDrawable = android.graphics.drawable.GradientDrawable().apply {
                     shape = android.graphics.drawable.GradientDrawable.OVAL
-                    setColor(if (isSelected) android.graphics.Color.parseColor("#FF3B30") else android.graphics.Color.parseColor("#007AFF"))
+                    val c = if (isSelected) MarkerSelected else MarkerDefault
+                    setColor(android.graphics.Color.argb(
+                        (c.alpha * 255).toInt(),
+                        (c.red * 255).toInt(),
+                        (c.green * 255).toInt(),
+                        (c.blue * 255).toInt()
+                    ))
                     setStroke(4, android.graphics.Color.WHITE)
                     setSize(if (isSelected) 56 else 40, if (isSelected) 56 else 40)
                 }
@@ -149,14 +166,20 @@ fun MapsScreen(
         mapView.invalidate()
     }
 
-    // Arahkan peta ke item terpilih
+    // Limit zoom when satellite is active
+    LaunchedEffect(isSatellite) {
+        if (isSatellite && mapView.zoomLevelDouble > SATELLITE_MAX_ZOOM) {
+            mapView.controller.setZoom(SATELLITE_MAX_ZOOM)
+        }
+    }
+
     LaunchedEffect(selectedItem) {
         val sel = selectedItem ?: return@LaunchedEffect
         mapView.controller.animateTo(GeoPoint(sel.lat, sel.lon))
-        mapView.controller.setZoom(16.0)
+        val targetZoom = if (isSatellite) SATELLITE_MAX_ZOOM.coerceAtMost(16.0) else 16.0
+        mapView.controller.setZoom(targetZoom)
     }
 
-    // Scroll list ke item terpilih saat pertama kali
     LaunchedEffect(selectedItemId, resolvedItems) {
         if (selectedItemId != null && resolvedItems.isNotEmpty()) {
             val idx = resolvedItems.indexOfFirst { it.id == selectedItemId }
@@ -164,11 +187,8 @@ fun MapsScreen(
         }
     }
 
-    // OSMDroid perlu onResume/onPause untuk start/stop thread tile & lokasi.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
-        // Panggil segera: MapView dibuat setelah lifecycle sudah RESUMED, jadi
-        // observer tidak akan mengirim ON_RESUME awal untuk memulai unduh tile.
         mapView.onResume()
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -185,92 +205,116 @@ fun MapsScreen(
     }
 
     if (geotaggedItems.isEmpty()) {
-        // Tidak ada foto bergeotag
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Peta") },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    )
+                )
+            }
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.LocationOff,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.outlineVariant,
-                    modifier = Modifier.size(64.dp)
-                )
-                Text(
-                    text = "Tidak Ada Foto Berlokasi",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Foto dengan informasi GPS akan muncul di sini",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 32.dp)
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.LocationOff,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Text(
+                        text = "Tidak Ada Foto Berlokasi",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Foto dengan informasi GPS akan muncul di sini",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    )
+                }
             }
         }
         return
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Peta
+        // Map
         AndroidView(
             factory = { mapView },
             modifier = Modifier.fillMaxSize()
         )
 
-        // Style switcher: Standard / Topo / Satelit
+        // Style switcher — top left, below safe area
         Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 60.dp, start = 12.dp)
+                .padding(top = 12.dp, start = 12.dp)
                 .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(20.dp))
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             listOf(
                 "Standard" to TileSourceFactory.MAPNIK,
-                "Topo" to TileSourceFactory.USGS_TOPO,
                 "Satelit" to esriSatellite
             ).forEach { (label, source) ->
                 val isSelected = selectedStyle == source
                 Box(
                     modifier = Modifier
                         .background(
-                            if (isSelected) Color.White.copy(alpha = 0.25f) else Color.Transparent,
+                            if (isSelected) MapChipSelectedBg else Color.Transparent,
                             RoundedCornerShape(16.dp)
                         )
-                        .clickable { selectedStyle = source }
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .clickable {
+                            selectedStyle = source
+                            // Enforce max zoom for satellite
+                            if (source == esriSatellite && mapView.zoomLevelDouble > SATELLITE_MAX_ZOOM) {
+                                mapView.controller.setZoom(SATELLITE_MAX_ZOOM)
+                            }
+                        }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = Color.White
+                        color = if (isSelected) MapChipSelectedText else MapChipUnselectedText
                     )
                 }
             }
         }
 
-        // Zoom controls
+        // Zoom controls — right center, with proper spacing
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(end = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             MapZoomButton(
                 icon = Icons.Rounded.Add,
                 contentDesc = "Zoom In",
-                onClick = { mapView.controller.zoomIn() }
+                onClick = {
+                    val newZoom = mapView.zoomLevelDouble + 1.0
+                    if (isSatellite && newZoom > SATELLITE_MAX_ZOOM) {
+                        mapView.controller.setZoom(SATELLITE_MAX_ZOOM)
+                    } else {
+                        mapView.controller.zoomIn()
+                    }
+                }
             )
             MapZoomButton(
                 icon = Icons.Rounded.Remove,
@@ -279,11 +323,11 @@ fun MapsScreen(
             )
         }
 
-        // Jumlah foto bergeotag badge
+        // Photo count badge — top right
         Surface(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 60.dp, end = 12.dp),
+                .padding(top = 12.dp, end = 16.dp),
             color = Color.Black.copy(alpha = 0.65f),
             shape = RoundedCornerShape(20.dp)
         ) {
@@ -295,7 +339,7 @@ fun MapsScreen(
             )
         }
 
-        // Panel bawah: horizontal scroll foto bergeotag
+        // Bottom panel: horizontal scroll
         AnimatedVisibility(
             visible = resolvedItems.isNotEmpty(),
             enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it },
@@ -309,7 +353,6 @@ fun MapsScreen(
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(top = 12.dp, bottom = 8.dp)
             ) {
-                // Label lokasi item terpilih
                 selectedItem?.let { sel ->
                     Text(
                         text = sel.item.displayName.substringBeforeLast("."),
@@ -347,9 +390,7 @@ fun MapsScreen(
                         MapPhotoThumbnail(
                             geoItem = geoItem,
                             isSelected = isSelected,
-                            onClick = {
-                                selectedItem = geoItem
-                            },
+                            onClick = { selectedItem = geoItem },
                             onDoubleClick = { onMediaClick(geoItem.item) }
                         )
                     }
@@ -375,16 +416,12 @@ private fun MapPhotoThumbnail(
             .clip(RoundedCornerShape(10.dp))
             .border(
                 width = if (isSelected) 2.5.dp else 0.dp,
-                color = if (isSelected) Color(0xFF007AFF) else Color.Transparent,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
                 shape = RoundedCornerShape(10.dp)
             )
             .clickable {
                 val now = System.currentTimeMillis()
-                if (now - lastClickTime < 400) {
-                    onDoubleClick()
-                } else {
-                    onClick()
-                }
+                if (now - lastClickTime < 400) onDoubleClick() else onClick()
                 lastClickTime = now
             }
     ) {
@@ -393,8 +430,6 @@ private fun MapPhotoThumbnail(
                 .data(geoItem.item.uri)
                 .crossfade(200)
                 .size(144)
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .diskCachePolicy(CachePolicy.ENABLED)
                 .build(),
             contentDescription = geoItem.item.displayName,
             contentScale = ContentScale.Crop,
@@ -402,7 +437,6 @@ private fun MapPhotoThumbnail(
             loading = { ShimmerBox(Modifier.fillMaxSize()) },
         )
 
-        // Date overlay
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -434,7 +468,7 @@ private fun MapZoomButton(
     IconButton(
         onClick = onClick,
         modifier = Modifier
-            .size(38.dp)
+            .size(40.dp)
             .background(Color.Black.copy(alpha = 0.6f), CircleShape)
     ) {
         Icon(

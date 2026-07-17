@@ -22,10 +22,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -41,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.gallery.app.data.MediaItem
 import com.gallery.app.ui.components.MediaThumbnail
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     query: String,
@@ -56,12 +60,13 @@ fun SearchScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
+            // Material 3 style search field
             TextField(
                 value = query,
                 onValueChange = onQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 placeholder = { Text("Cari foto, album, tanggal…") },
                 leadingIcon = {
                     Icon(Icons.Rounded.Search, contentDescription = null)
@@ -74,7 +79,7 @@ fun SearchScreen(
                     }
                 },
                 singleLine = true,
-                shape = CircleShape,
+                shape = MaterialTheme.shapes.extraLarge,
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -90,9 +95,9 @@ fun SearchScreen(
                 results.isNotEmpty() -> {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
-                        contentPadding = PaddingValues(2.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        contentPadding = PaddingValues(3.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         items(results, key = { it.id }) { item ->

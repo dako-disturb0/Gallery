@@ -16,7 +16,7 @@ private const val ESRI_IMAGERY_BASE =
 
 val EsriSatelliteTileSource: XYTileSource =
     object : XYTileSource(
-        "Satelit", 0, 19, 256, ".jpg",
+        "Satelit", 0, 18, 256, ".jpg",
         arrayOf(ESRI_IMAGERY_BASE)
     ) {
         override fun getTileURLString(pMapTileIndex: Long): String {

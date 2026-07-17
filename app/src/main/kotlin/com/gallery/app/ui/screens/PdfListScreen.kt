@@ -200,7 +200,7 @@ private fun PdfRow(pdf: PdfItem, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                color = Color(0xFFE53935).copy(alpha = 0.14f),
+                color = Color(0xFFD93025).copy(alpha = 0.14f),
                 shape = RoundedCornerShape(9.dp),
                 modifier = Modifier.size(40.dp)
             ) {
@@ -208,7 +208,7 @@ private fun PdfRow(pdf: PdfItem, onClick: () -> Unit) {
                     Icon(
                         imageVector = Icons.Rounded.PictureAsPdf,
                         contentDescription = null,
-                        tint = Color(0xFFE53935),
+                        tint = Color(0xFFD93025),
                         modifier = Modifier.size(22.dp)
                     )
                 }

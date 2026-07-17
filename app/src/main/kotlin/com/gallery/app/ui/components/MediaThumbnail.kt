@@ -19,9 +19,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
-import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import coil3.request.allowHardware
 import coil3.request.crossfade
 import com.gallery.app.data.MediaItem
 
@@ -49,11 +47,10 @@ fun MediaThumbnail(
         SubcomposeAsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(item.uri)
-                .crossfade(300)
+                .crossfade(250)
                 .size(256)
-                .diskCachePolicy(CachePolicy.ENABLED)
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .allowHardware(false)
+                // Disk & memory cache handled by global ImageLoader;
+                // no need to set per-request policies.
                 .build(),
             contentDescription = item.displayName,
             contentScale = ContentScale.Crop,
@@ -83,11 +80,8 @@ fun AlbumCoverThumbnail(
     SubcomposeAsyncImage(
         model = ImageRequest.Builder(LocalContext.current)
             .data(coverUri)
-            .crossfade(300)
+            .crossfade(250)
             .size(512)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .allowHardware(false)
             .build(),
         contentDescription = null,
         contentScale = ContentScale.Crop,

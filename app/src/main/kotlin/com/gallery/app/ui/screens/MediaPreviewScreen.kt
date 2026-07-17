@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
@@ -257,6 +256,24 @@ fun MediaPreviewScreen(
         return
     }
 
+    // Hide system bars for immersive preview experience
+    val view = LocalView.current
+    DisposableEffect(Unit) {
+        val window = (view.context as? android.app.Activity)?.window
+        if (window != null) {
+            val controller = androidx.core.view.WindowInsetsControllerCompat(window, view)
+            controller.systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose {
+            if (window != null) {
+                androidx.core.view.WindowInsetsControllerCompat(window, view)
+                    .show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -327,8 +344,7 @@ fun MediaPreviewScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.5f))
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(4.dp)
+                    .padding(top = 8.dp, start = 4.dp, end = 4.dp, bottom = 4.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -361,7 +377,7 @@ fun MediaPreviewScreen(
                             Icon(
                                 imageVector = if (topItem?.isFavorite == true) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                                 contentDescription = "Favorit",
-                                tint = if (topItem?.isFavorite == true) Color(0xFFE57373) else Color.White
+                                tint = if (topItem?.isFavorite == true) com.gallery.app.ui.theme.FavoriteRed else Color.White
                             )
                         }
                     }
@@ -455,7 +471,7 @@ fun MediaPreviewScreen(
         if (showDetailsSheet && topItem != null) {
             ModalBottomSheet(
                 onDismissRequest = { showDetailsSheet = false },
-                containerColor = if (isSystemInDarkTheme()) Color(0xFF1C1C1E) else Color(0xFFF2F2F7),
+                containerColor = if (isSystemInDarkTheme()) Color(0xFF1C1C1E) else Color(0xFFE8EAED),
                 tonalElevation = 2.dp
             ) {
                 MediaDetailsContent(item = topItem)
@@ -565,16 +581,22 @@ private fun ZoomablePage(
 
                                     scope.launch {
                                         if (scale > 1.1f) {
+                                            // Zoom out with spring
                                             val startScale = scale
                                             val startPanX = panX
                                             val startPanY = panY
-                                            animate(0f, 1f) { progress, _ ->
+                                            animate(
+                                                initialValue = 0f,
+                                                targetValue = 1f,
+                                                animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f)
+                                            ) { progress, _ ->
                                                 scale = startScale + (1f - startScale) * progress
                                                 panX = startPanX + (0f - startPanX) * progress
                                                 panY = startPanY + (0f - startPanY) * progress
                                             }
                                             onZoomChanged(false)
                                         } else {
+                                            // Zoom in with spring
                                             val targetScale = 2.5f
                                             val (imgW, imgH) = displayedImageSize(
                                                 size.width.toFloat(), size.height.toFloat(), imgAspect
@@ -583,11 +605,17 @@ private fun ZoomablePage(
                                             val maxPanY = imgH * (targetScale - 1f) / 2f
                                             val targetPanX = (-tapXFromCenter * (targetScale - 1f)).coerceIn(-maxPanX, maxPanX)
                                             val targetPanY = (-tapYFromCenter * (targetScale - 1f)).coerceIn(-maxPanY, maxPanY)
-
-                                            animate(0f, 1f) { progress, _ ->
-                                                scale = 1f + (targetScale - 1f) * progress
-                                                panX = targetPanX * progress
-                                                panY = targetPanY * progress
+                                            val startScale = scale
+                                            val startPanX = panX
+                                            val startPanY = panY
+                                            animate(
+                                                initialValue = 0f,
+                                                targetValue = 1f,
+                                                animationSpec = spring(dampingRatio = 0.75f, stiffness = 250f)
+                                            ) { progress, _ ->
+                                                scale = startScale + (targetScale - startScale) * progress
+                                                panX = startPanX + (targetPanX - startPanX) * progress
+                                                panY = startPanY + (targetPanY - startPanY) * progress
                                             }
                                             onZoomChanged(true)
                                         }
@@ -885,9 +913,16 @@ fun OpenStreetMap(
     }
 
     val esriSatellite = remember { com.gallery.app.ui.map.EsriSatelliteTileSource }
-
     var selectedStyle by remember { mutableStateOf<org.osmdroid.tileprovider.tilesource.ITileSource>(TileSourceFactory.MAPNIK) }
+    val isSatellite = selectedStyle == esriSatellite
     
+    // Limit zoom for satellite tiles
+    LaunchedEffect(isSatellite) {
+        if (isSatellite && mapView.zoomLevelDouble > 18.0) {
+            mapView.controller.setZoom(18.0)
+        }
+    }
+
     LaunchedEffect(latitude, longitude, selectedStyle) {
         mapView.setTileSource(selectedStyle)
         mapView.controller.animateTo(org.osmdroid.util.GeoPoint(latitude, longitude))
@@ -942,11 +977,18 @@ fun OpenStreetMap(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             IconButton(
-                onClick = { mapView.controller.zoomIn() },
+                onClick = {
+                    val newZoom = mapView.zoomLevelDouble + 1.0
+                    if (isSatellite && newZoom > 18.0) {
+                        mapView.controller.setZoom(18.0)
+                    } else {
+                        mapView.controller.zoomIn()
+                    }
+                },
                 modifier = Modifier
                     .size(40.dp)
                     .background(
@@ -980,6 +1022,7 @@ fun OpenStreetMap(
             }
         }
 
+        // Style switcher: Standard / Satelit (Topo removed — tiles blank)
         Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -993,7 +1036,6 @@ fun OpenStreetMap(
         ) {
             val styles = listOf(
                 "Standard" to TileSourceFactory.MAPNIK,
-                "Topo" to TileSourceFactory.USGS_TOPO,
                 "Satelit" to esriSatellite
             )
             styles.forEach { (label, source) ->
@@ -1034,93 +1076,93 @@ fun getFieldIconConfig(label: String): IconConfig {
     return when (label) {
         "Nama" -> IconConfig(
             icon = Icons.Outlined.TextFields,
-            tintColor = Color(0xFF007AFF), // iOS Blue
-            backgroundColor = if (isDark) Color(0xFF007AFF).copy(alpha = 0.15f) else Color(0xFFE8F2FF)
+            tintColor = Color(0xFF1A73E8),
+            backgroundColor = if (isDark) Color(0xFF1A73E8).copy(alpha = 0.15f) else Color(0xFFD3E3FD)
         )
         "Ukuran" -> IconConfig(
             icon = Icons.Outlined.SdStorage,
-            tintColor = Color(0xFF34C759), // iOS Green
-            backgroundColor = if (isDark) Color(0xFF34C759).copy(alpha = 0.15f) else Color(0xFFEAF9EE)
+            tintColor = Color(0xFF1E8E3E),
+            backgroundColor = if (isDark) Color(0xFF1E8E3E).copy(alpha = 0.15f) else Color(0xFFCEEAD6)
         )
         "Jenis" -> IconConfig(
             icon = Icons.Outlined.Category,
-            tintColor = Color(0xFF5856D6), // iOS Purple
-            backgroundColor = if (isDark) Color(0xFF5856D6).copy(alpha = 0.15f) else Color(0xFFEEEDFC)
+            tintColor = Color(0xFF5F6368),
+            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
         )
         "Folder" -> IconConfig(
             icon = Icons.Outlined.Folder,
-            tintColor = Color(0xFFFF9500), // iOS Orange
-            backgroundColor = if (isDark) Color(0xFFFF9500).copy(alpha = 0.15f) else Color(0xFFFFF4E5)
+            tintColor = Color(0xFFE37400),
+            backgroundColor = if (isDark) Color(0xFFE37400).copy(alpha = 0.15f) else Color(0xFFFCE8D2)
         )
         "Ditambahkan", "Diambil" -> IconConfig(
             icon = Icons.Outlined.CalendarMonth,
-            tintColor = Color(0xFFFF2D55), // iOS Pink
-            backgroundColor = if (isDark) Color(0xFFFF2D55).copy(alpha = 0.15f) else Color(0xFFFFEBF0)
+            tintColor = Color(0xFFD93025),
+            backgroundColor = if (isDark) Color(0xFFD93025).copy(alpha = 0.15f) else Color(0xFFFCE8E6)
         )
         "Dimensi" -> IconConfig(
             icon = Icons.Outlined.AspectRatio,
-            tintColor = Color(0xFF007AFF), // iOS Blue
-            backgroundColor = if (isDark) Color(0xFF007AFF).copy(alpha = 0.15f) else Color(0xFFE8F2FF)
+            tintColor = Color(0xFF1A73E8),
+            backgroundColor = if (isDark) Color(0xFF1A73E8).copy(alpha = 0.15f) else Color(0xFFD3E3FD)
         )
         "Resolusi" -> IconConfig(
             icon = Icons.Outlined.Photo,
-            tintColor = Color(0xFF32ADE6), // iOS Teal
-            backgroundColor = if (isDark) Color(0xFF32ADE6).copy(alpha = 0.15f) else Color(0xFFEBF7FC)
+            tintColor = Color(0xFF1A73E8),
+            backgroundColor = if (isDark) Color(0xFF1A73E8).copy(alpha = 0.15f) else Color(0xFFD3E3FD)
         )
         "Durasi" -> IconConfig(
             icon = Icons.Outlined.Timer,
-            tintColor = Color(0xFFFF3B30), // iOS Red
-            backgroundColor = if (isDark) Color(0xFFFF3B30).copy(alpha = 0.15f) else Color(0xFFFFEBEA)
+            tintColor = Color(0xFFD93025),
+            backgroundColor = if (isDark) Color(0xFFD93025).copy(alpha = 0.15f) else Color(0xFFFCE8E6)
         )
         "Bitrate" -> IconConfig(
             icon = Icons.Outlined.Speed,
-            tintColor = Color(0xFF8E8E93), // iOS Gray
-            backgroundColor = if (isDark) Color(0xFF8E8E93).copy(alpha = 0.15f) else Color(0xFFF2F2F7)
+            tintColor = Color(0xFF5F6368),
+            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
         )
         "Frame rate" -> IconConfig(
             icon = Icons.Outlined.SlowMotionVideo,
-            tintColor = Color(0xFF5856D6), // iOS Purple
-            backgroundColor = if (isDark) Color(0xFF5856D6).copy(alpha = 0.15f) else Color(0xFFEEEDFC)
+            tintColor = Color(0xFF5F6368),
+            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
         )
         "Produsen" -> IconConfig(
             icon = Icons.Outlined.Factory,
-            tintColor = Color(0xFF8E8E93), // iOS Gray
-            backgroundColor = if (isDark) Color(0xFF8E8E93).copy(alpha = 0.15f) else Color(0xFFF2F2F7)
+            tintColor = Color(0xFF5F6368),
+            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
         )
         "Model" -> IconConfig(
             icon = Icons.Outlined.CameraAlt,
-            tintColor = Color(0xFF007AFF), // iOS Blue
-            backgroundColor = if (isDark) Color(0xFF007AFF).copy(alpha = 0.15f) else Color(0xFFE8F2FF)
+            tintColor = Color(0xFF1A73E8),
+            backgroundColor = if (isDark) Color(0xFF1A73E8).copy(alpha = 0.15f) else Color(0xFFD3E3FD)
         )
         "Apertur" -> IconConfig(
             icon = Icons.Outlined.Camera,
-            tintColor = Color(0xFF34C759), // iOS Green
-            backgroundColor = if (isDark) Color(0xFF34C759).copy(alpha = 0.15f) else Color(0xFFEAF9EE)
+            tintColor = Color(0xFF1E8E3E),
+            backgroundColor = if (isDark) Color(0xFF1E8E3E).copy(alpha = 0.15f) else Color(0xFFCEEAD6)
         )
         "Kecepatan rana" -> IconConfig(
             icon = Icons.Outlined.Timer,
-            tintColor = Color(0xFFFF9500), // iOS Orange
-            backgroundColor = if (isDark) Color(0xFFFF9500).copy(alpha = 0.15f) else Color(0xFFFFF4E5)
+            tintColor = Color(0xFFE37400),
+            backgroundColor = if (isDark) Color(0xFFE37400).copy(alpha = 0.15f) else Color(0xFFFCE8D2)
         )
         "ISO" -> IconConfig(
             icon = Icons.Outlined.Iso,
-            tintColor = Color(0xFFFF2D55), // iOS Pink
-            backgroundColor = if (isDark) Color(0xFFFF2D55).copy(alpha = 0.15f) else Color(0xFFFFEBF0)
+            tintColor = Color(0xFFD93025),
+            backgroundColor = if (isDark) Color(0xFFD93025).copy(alpha = 0.15f) else Color(0xFFFCE8E6)
         )
         "Panjang fokus" -> IconConfig(
             icon = Icons.Outlined.CenterFocusStrong,
-            tintColor = Color(0xFF5856D6), // iOS Purple
-            backgroundColor = if (isDark) Color(0xFF5856D6).copy(alpha = 0.15f) else Color(0xFFEEEDFC)
+            tintColor = Color(0xFF5F6368),
+            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
         )
         "Koordinat" -> IconConfig(
             icon = Icons.Outlined.LocationOn,
-            tintColor = Color(0xFF34C759), // iOS Green
-            backgroundColor = if (isDark) Color(0xFF34C759).copy(alpha = 0.15f) else Color(0xFFEAF9EE)
+            tintColor = Color(0xFF1E8E3E),
+            backgroundColor = if (isDark) Color(0xFF1E8E3E).copy(alpha = 0.15f) else Color(0xFFCEEAD6)
         )
         else -> IconConfig(
             icon = Icons.Outlined.Info,
-            tintColor = Color(0xFF8E8E93),
-            backgroundColor = if (isDark) Color(0xFF8E8E93).copy(alpha = 0.15f) else Color(0xFFF2F2F7)
+            tintColor = Color(0xFF5F6368),
+            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
         )
     }
 }
@@ -1155,7 +1197,7 @@ private fun MediaDetailsContent(item: MediaItem) {
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    color = if (isSystemInDarkTheme()) Color(0xFF0A84FF) else Color(0xFF007AFF)
+                    color = if (isSystemInDarkTheme()) Color(0xFF1A73E8) else Color(0xFF1A73E8)
                 )
             }
         } else {
@@ -1184,7 +1226,7 @@ private fun MediaDetailsContent(item: MediaItem) {
                                 modifier = Modifier
                                     .size(30.dp)
                                     .background(
-                                        color = if (isSystemInDarkTheme()) Color(0xFF34C759).copy(alpha = 0.15f) else Color(0xFFEAF9EE),
+                                        color = if (isSystemInDarkTheme()) Color(0xFF1E8E3E).copy(alpha = 0.15f) else Color(0xFFCEEAD6),
                                         shape = RoundedCornerShape(7.dp)
                                     ),
                                 contentAlignment = Alignment.Center
@@ -1192,7 +1234,7 @@ private fun MediaDetailsContent(item: MediaItem) {
                                 Icon(
                                     imageVector = Icons.Outlined.Map,
                                     contentDescription = null,
-                                    tint = Color(0xFF34C759),
+                                    tint = Color(0xFF1E8E3E),
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -1206,7 +1248,7 @@ private fun MediaDetailsContent(item: MediaItem) {
                             Icon(
                                 imageVector = Icons.Outlined.OpenInNew,
                                 contentDescription = null,
-                                tint = Color(0xFF8E8E93),
+                                tint = Color(0xFF5F6368),
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -1223,14 +1265,14 @@ private fun MetadataSectionCard(section: MetadataSection) {
     val isDark = isSystemInDarkTheme()
     val cardBackground = if (isDark) Color(0xFF1C1C1E) else Color.White
     val textColor = if (isDark) Color.White else Color.Black
-    val labelColor = Color(0xFF8E8E93)
+    val labelColor = Color(0xFF5F6368)
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = section.title,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = if (isDark) Color(0xFF0A84FF) else Color(0xFF007AFF),
+            color = if (isDark) Color(0xFF1A73E8) else Color(0xFF1A73E8),
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
         )
         Spacer(modifier = Modifier.height(6.dp))

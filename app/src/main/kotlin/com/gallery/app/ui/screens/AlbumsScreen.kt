@@ -208,7 +208,7 @@ private fun LocationAlbumCard(
             .clip(RoundedCornerShape(16.dp))
             .background(
                 Brush.horizontalGradient(
-                    colors = listOf(Color(0xFF0A84FF), Color(0xFF34C759))
+                    colors = listOf(com.gallery.app.ui.theme.LocationGradientStart, com.gallery.app.ui.theme.LocationGradientEnd)
                 )
             )
             .clickable { onClick() }
