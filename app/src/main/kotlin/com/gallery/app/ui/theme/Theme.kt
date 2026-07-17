@@ -118,6 +118,7 @@ fun GalleryTheme(
  * On Android 12+ with dynamic color, we still want our Google-blue primary
  * to shine through. Use dynamic colors for surfaces but override primary.
  */
+@androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.S)
 private fun dynamicLightSchemeWithFallback(
     context: android.content.Context,
     darkTheme: Boolean
