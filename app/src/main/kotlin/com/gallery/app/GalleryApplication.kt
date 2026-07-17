@@ -5,6 +5,7 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
+import okio.Path.Companion.toPath
 import coil3.memory.MemoryCache
 import coil3.request.CachePolicy
 import coil3.request.crossfade
@@ -42,7 +43,7 @@ class GalleryApplication : Application(), SingletonImageLoader.Factory {
             // as "Cache" in system Settings → Storage).
             .diskCache {
                 DiskCache.Builder()
-                    .directory(context.filesDir.resolve("thumbnails").toPath())
+                    .directory(context.filesDir.resolve("thumbnails").absolutePath.toPath())
                     .maxSizeBytes(250L * 1024 * 1024) // 250 MB
                     .build()
             }
