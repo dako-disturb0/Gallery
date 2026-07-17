@@ -42,7 +42,7 @@ class GalleryApplication : Application(), SingletonImageLoader.Factory {
             // as "Cache" in system Settings → Storage).
             .diskCache {
                 DiskCache.Builder()
-                    .directory(context.filesDir.resolve("thumbnails"))
+                    .directory(context.filesDir.resolve("thumbnails").toPath())
                     .maxSizeBytes(250L * 1024 * 1024) // 250 MB
                     .build()
             }

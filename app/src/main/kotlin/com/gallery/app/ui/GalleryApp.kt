@@ -167,47 +167,18 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                         alwaysShowLabel = true,
                     )
                 }
-                // More menu as last item
-                Box {
-                    NavigationBarItem(
-                        selected = false,
-                        onClick = { showMoreMenu = true },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Lainnya",
-                            )
-                        },
-                        label = { Text("Lainnya") },
-                        alwaysShowLabel = true,
-                    )
-                    DropdownMenu(
-                        expanded = showMoreMenu,
-                        onDismissRequest = { showMoreMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Favorit") },
-                            onClick = { showMoreMenu = false; navController.navigate("favorites_overlay") },
-                            leadingIcon = { Icon(Icons.Outlined.FavoriteBorder, null) }
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { showMoreMenu = true },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Lainnya",
                         )
-                        DropdownMenuItem(
-                            text = { Text("PDF") },
-                            onClick = { showMoreMenu = false; navController.navigate("pdf_list_overlay") },
-                            leadingIcon = { Icon(Icons.Outlined.PictureAsPdf, null) }
-                        )
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text("Log & Diagnostik") },
-                            onClick = { showMoreMenu = false; navController.navigate("log_overlay") },
-                            leadingIcon = { Icon(Icons.Outlined.BugReport, null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Setelan") },
-                            onClick = { showMoreMenu = false; navController.navigate("settings_overlay") },
-                            leadingIcon = { Icon(Icons.Outlined.Settings, null) }
-                        )
-                    }
-                }
+                    },
+                    label = { Text("Lainnya") },
+                    alwaysShowLabel = true,
+                )
             }
         }
     ) { innerPadding ->
@@ -387,6 +358,34 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                 composable("log_overlay") {
                     LogScreen(onBackClick = { navController.popBackStack() })
                 }
+            }
+
+            // More menu dropdown — overlay on top of content
+            DropdownMenu(
+                expanded = showMoreMenu,
+                onDismissRequest = { showMoreMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Favorit") },
+                    onClick = { showMoreMenu = false; navController.navigate("favorites_overlay") },
+                    leadingIcon = { Icon(Icons.Outlined.FavoriteBorder, null) }
+                )
+                DropdownMenuItem(
+                    text = { Text("PDF") },
+                    onClick = { showMoreMenu = false; navController.navigate("pdf_list_overlay") },
+                    leadingIcon = { Icon(Icons.Outlined.PictureAsPdf, null) }
+                )
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text("Log & Diagnostik") },
+                    onClick = { showMoreMenu = false; navController.navigate("log_overlay") },
+                    leadingIcon = { Icon(Icons.Outlined.BugReport, null) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Setelan") },
+                    onClick = { showMoreMenu = false; navController.navigate("settings_overlay") },
+                    leadingIcon = { Icon(Icons.Outlined.Settings, null) }
+                )
             }
         }
     }
