@@ -472,8 +472,9 @@ fun MediaPreviewScreen(
         if (showDetailsSheet && topItem != null) {
             ModalBottomSheet(
                 onDismissRequest = { showDetailsSheet = false },
-                containerColor = if (isSystemInDarkTheme()) Color(0xFF1C1C1E) else Color(0xFFE8EAED),
-                tonalElevation = 2.dp
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                tonalElevation = 0.dp
             ) {
                 MediaDetailsContent(item = topItem)
             }
@@ -483,15 +484,19 @@ fun MediaPreviewScreen(
 
 @Composable
 private fun BottomAction(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = Color.Transparent,
     ) {
-        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(24.dp))
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+            Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.9f))
+        }
     }
 }
 
@@ -991,16 +996,16 @@ fun OpenStreetMap(
                     }
                 },
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(44.dp)
                     .background(
-                        color = if (isDark) Color(0xFF2C2C2E).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(10.dp)
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(12.dp)
                     )
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Add,
                     contentDescription = "Zoom In",
-                    tint = if (isDark) Color.White else Color.Black,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -1008,16 +1013,16 @@ fun OpenStreetMap(
             IconButton(
                 onClick = { mapView.controller.zoomOut() },
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(44.dp)
                     .background(
-                        color = if (isDark) Color(0xFF2C2C2E).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(10.dp)
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(12.dp)
                     )
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Remove,
                     contentDescription = "Zoom Out",
-                    tint = if (isDark) Color.White else Color.Black,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -1029,10 +1034,10 @@ fun OpenStreetMap(
                 .align(Alignment.TopStart)
                 .padding(12.dp)
                 .background(
-                    color = if (isDark) Color(0xFF1C1C1E).copy(alpha = 0.85f) else Color(0xFFE5E5EA).copy(alpha = 0.85f),
-                    shape = RoundedCornerShape(8.dp)
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(24.dp)
                 )
-                .padding(2.dp),
+                .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             val styles = listOf(
@@ -1045,19 +1050,19 @@ fun OpenStreetMap(
                     modifier = Modifier
                         .background(
                             color = if (isSelected) {
-                                if (isDark) Color(0xFF2C2C2E) else Color.White
+                                MaterialTheme.colorScheme.primary
                             } else Color.Transparent,
-                            shape = RoundedCornerShape(6.dp)
+                            shape = RoundedCornerShape(20.dp)
                         )
                         .clickable { selectedStyle = source }
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isDark) Color.White else Color.Black
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -1212,8 +1217,8 @@ private fun MediaDetailsContent(item: MediaItem) {
                 // Jika ada koordinat, tampilkan tombol buka di peta eksternal (MapView dipindah ke tab Peta)
                 if (section.title == "Lokasi" && lat != null && lon != null) {
                     Surface(
-                        color = if (isSystemInDarkTheme()) Color(0xFF1C1C1E) else Color.White,
-                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -1225,10 +1230,10 @@ private fun MediaDetailsContent(item: MediaItem) {
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(30.dp)
+                                    .size(32.dp)
                                     .background(
-                                        color = if (isSystemInDarkTheme()) Color(0xFF1E8E3E).copy(alpha = 0.15f) else Color(0xFFCEEAD6),
-                                        shape = RoundedCornerShape(7.dp)
+                                        color = Color(0xFF1E8E3E).copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(8.dp)
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -1236,21 +1241,22 @@ private fun MediaDetailsContent(item: MediaItem) {
                                     imageVector = Icons.Outlined.Map,
                                     contentDescription = null,
                                     tint = Color(0xFF1E8E3E),
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "Buka di Aplikasi Peta",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (isSystemInDarkTheme()) Color.White else Color.Black,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f)
                             )
                             Icon(
                                 imageVector = Icons.Outlined.OpenInNew,
                                 contentDescription = null,
-                                tint = Color(0xFF5F6368),
-                                modifier = Modifier.size(16.dp)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -1263,24 +1269,18 @@ private fun MediaDetailsContent(item: MediaItem) {
 
 @Composable
 private fun MetadataSectionCard(section: MetadataSection) {
-    val isDark = isSystemInDarkTheme()
-    val cardBackground = if (isDark) Color(0xFF1C1C1E) else Color.White
-    val textColor = if (isDark) Color.White else Color.Black
-    val labelColor = Color(0xFF5F6368)
-
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = section.title,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = if (isDark) Color(0xFF1A73E8) else Color(0xFF1A73E8),
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
         )
         Spacer(modifier = Modifier.height(6.dp))
         Surface(
-            color = cardBackground,
-            shape = RoundedCornerShape(14.dp),
-            tonalElevation = 1.dp,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(20.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -1294,15 +1294,15 @@ private fun MetadataSectionCard(section: MetadataSection) {
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(30.dp)
-                                .background(iconConfig.backgroundColor, shape = RoundedCornerShape(7.dp)),
+                                .size(32.dp)
+                                .background(iconConfig.backgroundColor, shape = RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = iconConfig.icon,
                                 contentDescription = null,
                                 tint = iconConfig.tintColor,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
 
@@ -1312,7 +1312,7 @@ private fun MetadataSectionCard(section: MetadataSection) {
                             text = field.label,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Normal,
-                            color = textColor,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f)
                         )
 
@@ -1321,7 +1321,7 @@ private fun MetadataSectionCard(section: MetadataSection) {
                         Text(
                             text = field.value,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = labelColor,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.End,
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
@@ -1330,9 +1330,9 @@ private fun MetadataSectionCard(section: MetadataSection) {
                     }
                     if (index < section.fields.lastIndex) {
                         HorizontalDivider(
-                            color = if (isDark) Color(0xFF38383A) else Color(0xFFE5E5EA),
+                            color = MaterialTheme.colorScheme.outlineVariant,
                             thickness = 0.5.dp,
-                            modifier = Modifier.padding(start = 42.dp)
+                            modifier = Modifier.padding(start = 44.dp)
                         )
                     }
                 }

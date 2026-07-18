@@ -38,6 +38,7 @@ private val LightColorScheme = lightColorScheme(
     onSurface = OnSurfaceLight,
     surfaceVariant = SurfaceVariantLight,
     onSurfaceVariant = OnSurfaceVariantLight,
+    surfaceContainerLowest = SurfaceContainerLowestLight,
     surfaceContainerLow = SurfaceContainerLowLight,
     surfaceContainer = SurfaceContainerLight,
     surfaceContainerHigh = SurfaceContainerHighLight,
@@ -72,6 +73,7 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = OnSurfaceDark,
     surfaceVariant = SurfaceVariantDark,
     onSurfaceVariant = OnSurfaceVariantDark,
+    surfaceContainerLowest = SurfaceContainerLowestDark,
     surfaceContainerLow = SurfaceContainerLowDark,
     surfaceContainer = SurfaceContainerDark,
     surfaceContainerHigh = SurfaceContainerHighDark,
@@ -90,10 +92,16 @@ fun GalleryTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
-        // Dynamic color on Android 12+, but override with our palette
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightSchemeWithFallback(context, darkTheme)
+            val dynamic = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            // Keep our expressive primary even with dynamic color
+            dynamic.copy(
+                primary = if (darkTheme) PrimaryDark else PrimaryLight,
+                onPrimary = if (darkTheme) OnPrimaryDark else OnPrimaryLight,
+                primaryContainer = if (darkTheme) PrimaryContainerDark else PrimaryContainerLight,
+                onPrimaryContainer = if (darkTheme) OnPrimaryContainerDark else OnPrimaryContainerLight,
+            )
         }
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
@@ -113,18 +121,3 @@ fun GalleryTheme(
         content = content
     )
 }
-
-/**
- * On Android 12+ with dynamic color, we still want our Google-blue primary
- * to shine through. Use dynamic colors for surfaces but override primary.
- */
-@androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.S)
-private fun dynamicLightSchemeWithFallback(
-    context: android.content.Context,
-    darkTheme: Boolean
-) = dynamicLightColorScheme(context).copy(
-    primary = PrimaryLight,
-    onPrimary = OnPrimaryLight,
-    primaryContainer = PrimaryContainerLight,
-    onPrimaryContainer = OnPrimaryContainerLight,
-)

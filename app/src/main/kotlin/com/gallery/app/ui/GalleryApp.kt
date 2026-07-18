@@ -5,14 +5,33 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.BugReport
@@ -33,9 +52,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -46,10 +63,16 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -78,20 +101,20 @@ private const val TAB_FOTO = 0
 private const val TAB_KOLEKSI = 1
 private const val TAB_CARI = 2
 private const val TAB_PETA = 3
-private const val NAV_ANIM_DURATION = 280
+private const val NAV_ANIM_DURATION = 300
 
-private data class BottomNavEntry(
+private data class PillNavEntry(
     val index: Int,
     val label: String,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
 )
 
-private val bottomNavEntries = listOf(
-    BottomNavEntry(TAB_FOTO, "Foto", Icons.Rounded.PhotoLibrary, Icons.Outlined.PhotoLibrary),
-    BottomNavEntry(TAB_KOLEKSI, "Koleksi", Icons.Rounded.Collections, Icons.Outlined.Collections),
-    BottomNavEntry(TAB_CARI, "Cari", Icons.Rounded.Search, Icons.Outlined.Search),
-    BottomNavEntry(TAB_PETA, "Peta", Icons.Rounded.Map, Icons.Outlined.Map),
+private val pillNavEntries = listOf(
+    PillNavEntry(TAB_FOTO, "Foto", Icons.Rounded.PhotoLibrary, Icons.Outlined.PhotoLibrary),
+    PillNavEntry(TAB_KOLEKSI, "Koleksi", Icons.Rounded.Collections, Icons.Outlined.Collections),
+    PillNavEntry(TAB_CARI, "Cari", Icons.Rounded.Search, Icons.Outlined.Search),
+    PillNavEntry(TAB_PETA, "Peta", Icons.Rounded.Map, Icons.Outlined.Map),
 )
 
 @Composable
@@ -143,227 +166,208 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
         if (pendingMapItemId > 0L) selectedTab = TAB_PETA
     }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0.dp),
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 0.dp,
-            ) {
-                bottomNavEntries.forEach { entry ->
-                    NavigationBarItem(
-                        selected = selectedTab == entry.index,
-                        onClick = {
-                            selectedTab = entry.index
-                            if (entry.index != TAB_PETA) viewModel.clearPendingMapItem()
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (selectedTab == entry.index) entry.selectedIcon else entry.unselectedIcon,
-                                contentDescription = entry.label,
-                            )
-                        },
-                        label = { Text(entry.label) },
-                        alwaysShowLabel = true,
-                    )
-                }
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { showMoreMenu = true },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Lainnya",
-                        )
+    Box(modifier = Modifier.fillMaxSize()) {
+        // ── Content layer ──
+        NavHost(
+            navController = navController,
+            startDestination = "main",
+            enterTransition = {
+                fadeIn(tween(NAV_ANIM_DURATION)) + slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    tween(NAV_ANIM_DURATION),
+                    initialOffset = { it / 8 }
+                )
+            },
+            exitTransition = {
+                fadeOut(tween(NAV_ANIM_DURATION)) + slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    tween(NAV_ANIM_DURATION),
+                    targetOffset = { it / 8 }
+                )
+            },
+            popEnterTransition = {
+                fadeIn(tween(NAV_ANIM_DURATION)) + slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(NAV_ANIM_DURATION),
+                    initialOffset = { it / 8 }
+                )
+            },
+            popExitTransition = {
+                fadeOut(tween(NAV_ANIM_DURATION)) + slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(NAV_ANIM_DURATION),
+                    targetOffset = { it / 8 }
+                )
+            },
+        ) {
+            // ── Main: tab content ──
+            composable("main") {
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = {
+                        fadeIn(tween(250)) togetherWith fadeOut(tween(250))
                     },
-                    label = { Text("Lainnya") },
-                    alwaysShowLabel = true,
+                    modifier = Modifier.fillMaxSize(),
+                    label = "tabContent"
+                ) { tab ->
+                    when (tab) {
+                        TAB_FOTO -> PhotosScreen(
+                            groupedMediaItems = groupedMediaItems,
+                            isLoading = isLoading,
+                            onMediaClick = { item ->
+                                navController.navigate(Screen.MediaPreview.createRoute(item.id))
+                            }
+                        )
+                        TAB_KOLEKSI -> AlbumsScreen(
+                            albums = albums,
+                            isLoading = isLoading,
+                            geotaggedCount = geotaggedItems.size,
+                            onAlbumClick = { album ->
+                                navController.navigate(Screen.AlbumDetail.createRoute(album.id, album.name))
+                            },
+                            onLocationAlbumClick = { selectedTab = TAB_PETA }
+                        )
+                        TAB_CARI -> SearchScreen(
+                            query = searchQuery,
+                            onQueryChange = viewModel::updateSearchQuery,
+                            results = searchResults,
+                            onMediaClick = { item ->
+                                navController.navigate(Screen.MediaPreview.createRoute(item.id))
+                            }
+                        )
+                        TAB_PETA -> MapsScreen(
+                            geotaggedItems = geotaggedItems,
+                            selectedItemId = if (pendingMapItemId > 0L) pendingMapItemId else null,
+                            onMediaClick = { item ->
+                                viewModel.clearPendingMapItem()
+                                navController.navigate(Screen.MediaPreview.createRoute(item.id, fromMaps = true))
+                            }
+                        )
+                    }
+                }
+            }
+
+            // ── Album Detail ──
+            composable(Screen.AlbumDetail.route) { back ->
+                val albumId = back.arguments?.getString("albumId") ?: ""
+                val albumName = back.arguments?.getString("albumName") ?: ""
+                AlbumDetailScreen(
+                    albumId = albumId,
+                    albumName = albumName,
+                    mediaItems = mediaItems,
+                    onBackClick = { navController.popBackStack() },
+                    onMediaClick = { item ->
+                        navController.navigate(Screen.MediaPreview.createRoute(item.id, albumId = albumId))
+                    }
                 )
             }
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            NavHost(
-                navController = navController,
-                startDestination = "main",
-                enterTransition = {
-                    fadeIn(tween(NAV_ANIM_DURATION)) + slideIntoContainer(
-                        AnimatedContentTransitionScope.SlideDirection.Start,
-                        tween(NAV_ANIM_DURATION),
-                        initialOffset = { it / 10 }
-                    )
-                },
-                exitTransition = {
-                    fadeOut(tween(NAV_ANIM_DURATION)) + slideOutOfContainer(
-                        AnimatedContentTransitionScope.SlideDirection.Start,
-                        tween(NAV_ANIM_DURATION),
-                        targetOffset = { it / 10 }
-                    )
-                },
-                popEnterTransition = {
-                    fadeIn(tween(NAV_ANIM_DURATION)) + slideIntoContainer(
-                        AnimatedContentTransitionScope.SlideDirection.End,
-                        tween(NAV_ANIM_DURATION),
-                        initialOffset = { it / 10 }
-                    )
-                },
-                popExitTransition = {
-                    fadeOut(tween(NAV_ANIM_DURATION)) + slideOutOfContainer(
-                        AnimatedContentTransitionScope.SlideDirection.End,
-                        tween(NAV_ANIM_DURATION),
-                        targetOffset = { it / 10 }
-                    )
-                },
-            ) {
-                // ── Main: tab content ──
-                composable("main") {
-                    AnimatedContent(
-                        targetState = selectedTab,
-                        transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
-                        modifier = Modifier.fillMaxSize(),
-                        label = "tabContent"
-                    ) { tab ->
-                        when (tab) {
-                            TAB_FOTO -> PhotosScreen(
-                                groupedMediaItems = groupedMediaItems,
-                                isLoading = isLoading,
-                                onMediaClick = { item ->
-                                    navController.navigate(Screen.MediaPreview.createRoute(item.id))
-                                }
-                            )
-                            TAB_KOLEKSI -> AlbumsScreen(
-                                albums = albums,
-                                isLoading = isLoading,
-                                geotaggedCount = geotaggedItems.size,
-                                onAlbumClick = { album ->
-                                    navController.navigate(Screen.AlbumDetail.createRoute(album.id, album.name))
-                                },
-                                onLocationAlbumClick = { selectedTab = TAB_PETA }
-                            )
-                            TAB_CARI -> SearchScreen(
-                                query = searchQuery,
-                                onQueryChange = viewModel::updateSearchQuery,
-                                results = searchResults,
-                                onMediaClick = { item ->
-                                    navController.navigate(Screen.MediaPreview.createRoute(item.id))
-                                }
-                            )
-                            TAB_PETA -> MapsScreen(
-                                geotaggedItems = geotaggedItems,
-                                selectedItemId = if (pendingMapItemId > 0L) pendingMapItemId else null,
-                                onMediaClick = { item ->
-                                    viewModel.clearPendingMapItem()
-                                    navController.navigate(Screen.MediaPreview.createRoute(item.id, fromMaps = true))
-                                }
-                            )
+
+            // ── Media Preview ──
+            composable(Screen.MediaPreview.route) { back ->
+                val itemId = back.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
+                val albumId = back.arguments?.getString("albumId")
+                val isFavorite = back.arguments?.getString("isFavorite")?.toBoolean() ?: false
+
+                val hasGeoTag = remember(itemId, geotaggedItems) {
+                    geotaggedItems.any { it.id == itemId }
+                }
+
+                MediaPreviewScreen(
+                    initialItemId = itemId,
+                    albumId = albumId,
+                    isFavorite = isFavorite,
+                    allMediaItems = mediaItems,
+                    favoritesList = favorites,
+                    onBackClick = { navController.popBackStack() },
+                    onFavoriteRequest = viewModel::favoriteRequest,
+                    onDeleteRequest = viewModel::deleteRequest,
+                    onMapClick = if (hasGeoTag) {
+                        { item ->
+                            viewModel.requestOpenInMap(item.id)
+                            navController.popBackStack("main", inclusive = false)
                         }
-                    }
-                }
+                    } else null
+                )
+            }
 
-                // ── Album Detail ──
-                composable(Screen.AlbumDetail.route) { back ->
-                    val albumId = back.arguments?.getString("albumId") ?: ""
-                    val albumName = back.arguments?.getString("albumName") ?: ""
-                    AlbumDetailScreen(
-                        albumId = albumId,
-                        albumName = albumName,
-                        mediaItems = mediaItems,
-                        onBackClick = { navController.popBackStack() },
-                        onMediaClick = { item ->
-                            navController.navigate(Screen.MediaPreview.createRoute(item.id, albumId = albumId))
-                        }
-                    )
-                }
+            // ── Favorit ──
+            composable("favorites_overlay") {
+                FavoritesScreen(
+                    favorites = favorites,
+                    onMediaClick = { item ->
+                        navController.navigate(Screen.MediaPreview.createRoute(item.id, isFavorite = true))
+                    },
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
 
-                // ── Media Preview ──
-                composable(Screen.MediaPreview.route) { back ->
-                    val itemId = back.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
-                    val albumId = back.arguments?.getString("albumId")
-                    val isFavorite = back.arguments?.getString("isFavorite")?.toBoolean() ?: false
+            // ── Setelan ──
+            composable("settings_overlay") {
+                SettingsScreen(
+                    currentGrouping = dateGrouping,
+                    onGroupingChange = viewModel::setDateGrouping,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
 
-                    val hasGeoTag = remember(itemId, geotaggedItems) {
-                        geotaggedItems.any { it.id == itemId }
-                    }
+            // ── PDF list ──
+            composable("pdf_list_overlay") {
+                LaunchedEffect(Unit) { viewModel.loadPdfs() }
+                PdfListScreen(
+                    pdfs = pdfs,
+                    isLoading = isLoadingPdfs,
+                    onPdfClick = { uri, name ->
+                        navController.navigate(Screen.PdfViewer.createRoute(uri.toString(), name))
+                    },
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
 
-                    MediaPreviewScreen(
-                        initialItemId = itemId,
-                        albumId = albumId,
-                        isFavorite = isFavorite,
-                        allMediaItems = mediaItems,
-                        favoritesList = favorites,
-                        onBackClick = { navController.popBackStack() },
-                        onFavoriteRequest = viewModel::favoriteRequest,
-                        onDeleteRequest = viewModel::deleteRequest,
-                        onMapClick = if (hasGeoTag) {
-                            { item ->
-                                viewModel.requestOpenInMap(item.id)
-                                navController.popBackStack("main", inclusive = false)
-                            }
-                        } else null
-                    )
-                }
-
-                // ── Favorit ──
-                composable("favorites_overlay") {
-                    FavoritesScreen(
-                        favorites = favorites,
-                        onMediaClick = { item ->
-                            navController.navigate(Screen.MediaPreview.createRoute(item.id, isFavorite = true))
-                        },
+            // ── PDF viewer ──
+            composable(Screen.PdfViewer.route) { back ->
+                val uriStr = back.arguments?.getString("uri")
+                val name = back.arguments?.getString("name") ?: "Dokumen"
+                val uri = uriStr?.let { Uri.parse(it) }
+                if (uri != null) {
+                    PdfViewerScreen(
+                        uri = uri,
+                        title = name,
                         onBackClick = { navController.popBackStack() }
                     )
-                }
-
-                // ── Setelan ──
-                composable("settings_overlay") {
-                    SettingsScreen(
-                        currentGrouping = dateGrouping,
-                        onGroupingChange = viewModel::setDateGrouping,
-                        onBackClick = { navController.popBackStack() }
-                    )
-                }
-
-                // ── PDF list ──
-                composable("pdf_list_overlay") {
-                    LaunchedEffect(Unit) { viewModel.loadPdfs() }
-                    PdfListScreen(
-                        pdfs = pdfs,
-                        isLoading = isLoadingPdfs,
-                        onPdfClick = { uri, name ->
-                            navController.navigate(Screen.PdfViewer.createRoute(uri.toString(), name))
-                        },
-                        onBackClick = { navController.popBackStack() }
-                    )
-                }
-
-                // ── PDF viewer ──
-                composable(Screen.PdfViewer.route) { back ->
-                    val uriStr = back.arguments?.getString("uri")
-                    val name = back.arguments?.getString("name") ?: "Dokumen"
-                    val uri = uriStr?.let { Uri.parse(it) }
-                    if (uri != null) {
-                        PdfViewerScreen(
-                            uri = uri,
-                            title = name,
-                            onBackClick = { navController.popBackStack() }
-                        )
-                    }
-                }
-
-                // ── Log & Diagnostik ──
-                composable("log_overlay") {
-                    LogScreen(onBackClick = { navController.popBackStack() })
                 }
             }
 
-            // More menu dropdown — overlay on top of content
+            // ── Log & Diagnostik ──
+            composable("log_overlay") {
+                LogScreen(onBackClick = { navController.popBackStack() })
+            }
+        }
+
+        // ── Floating Pill Navigation ──
+        FloatingPillNavBar(
+            selectedTab = selectedTab,
+            onTabSelected = { tab ->
+                selectedTab = tab
+                if (tab != TAB_PETA) viewModel.clearPendingMapItem()
+            },
+            onMoreClick = { showMoreMenu = true },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(bottom = 12.dp)
+        )
+
+        // More menu dropdown
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 80.dp, end = 16.dp)
+        ) {
             DropdownMenu(
                 expanded = showMoreMenu,
-                onDismissRequest = { showMoreMenu = false }
+                onDismissRequest = { showMoreMenu = false },
+                shape = RoundedCornerShape(20.dp),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 DropdownMenuItem(
                     text = { Text("Favorit") },
@@ -375,7 +379,7 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                     onClick = { showMoreMenu = false; navController.navigate("pdf_list_overlay") },
                     leadingIcon = { Icon(Icons.Outlined.PictureAsPdf, null) }
                 )
-                HorizontalDivider()
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 DropdownMenuItem(
                     text = { Text("Log & Diagnostik") },
                     onClick = { showMoreMenu = false; navController.navigate("log_overlay") },
@@ -385,6 +389,136 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                     text = { Text("Setelan") },
                     onClick = { showMoreMenu = false; navController.navigate("settings_overlay") },
                     leadingIcon = { Icon(Icons.Outlined.Settings, null) }
+                )
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Floating Pill Navigation Bar
+// ═══════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun FloatingPillNavBar(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    onMoreClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val isDark = isSystemInDarkTheme()
+
+    Surface(
+        modifier = modifier
+            .shadow(
+                elevation = 12.dp,
+                shape = RoundedCornerShape(50),
+                ambientColor = Color.Black.copy(alpha = 0.15f),
+                spotColor = Color.Black.copy(alpha = 0.15f)
+            ),
+        shape = RoundedCornerShape(50),
+        color = if (isDark)
+            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.95f)
+        else
+            MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.97f),
+        tonalElevation = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            pillNavEntries.forEach { entry ->
+                val isSelected = selectedTab == entry.index
+                PillNavItem(
+                    entry = entry,
+                    isSelected = isSelected,
+                    onClick = { onTabSelected(entry.index) }
+                )
+            }
+
+            // More button
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onMoreClick),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Lainnya",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PillNavItem(
+    entry: PillNavEntry,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    val animatedWidth by animateDpAsState(
+        targetValue = if (isSelected) 96.dp else 48.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "pillWidth"
+    )
+    val animatedIconScale by animateFloatAsState(
+        targetValue = if (isSelected) 1.1f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "iconScale"
+    )
+
+    val bgColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+    val contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Box(
+        modifier = Modifier
+            .height(48.dp)
+            .clip(RoundedCornerShape(50))
+            .background(bgColor)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = if (isSelected) 12.dp else 0.dp)
+        ) {
+            Icon(
+                imageVector = if (isSelected) entry.selectedIcon else entry.unselectedIcon,
+                contentDescription = entry.label,
+                tint = contentColor,
+                modifier = Modifier.size(24.dp)
+            )
+
+            AnimatedVisibility(
+                visible = isSelected,
+                enter = fadeIn(tween(200)) + scaleIn(
+                    initialScale = 0.8f,
+                    animationSpec = tween(200)
+                ),
+                exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.8f)
+            ) {
+                Text(
+                    text = entry.label,
+                    color = contentColor,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 6.dp)
                 )
             }
         }

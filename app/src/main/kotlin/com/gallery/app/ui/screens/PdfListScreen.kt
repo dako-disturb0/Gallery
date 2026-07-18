@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,13 +31,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -58,14 +58,12 @@ fun PdfListScreen(
     onBackClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    val repository = androidx.compose.runtime.remember { PdfRepository(context) }
+    val repository = remember { PdfRepository(context) }
 
-    // Storage Access Framework: buka PDF apa pun tanpa izin tambahan.
     val openDocument = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            // Pertahankan akses baca agar tetap valid saat rotasi/recompose.
             runCatching {
                 context.contentResolver.takePersistableUriPermission(
                     uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -77,38 +75,45 @@ fun PdfListScreen(
 
     fun launchPicker() = runCatching { openDocument.launch(arrayOf("application/pdf")) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("PDF") },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Kembali"
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { launchPicker() }) {
-                        Icon(Icons.Rounded.FolderOpen, contentDescription = "Buka dari file")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                )
-            )
-        }
-    ) { innerPadding ->
-        LazyColumn(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.statusBars)
+    ) {
+        // ── Header ──
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Kembali"
+                )
+            }
+            Text(
+                text = "PDF",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 52.dp)
+            )
+            IconButton(
+                onClick = { launchPicker() },
+                modifier = Modifier.align(Alignment.CenterEnd)
+            ) {
+                Icon(Icons.Rounded.FolderOpen, contentDescription = "Buka dari file")
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Kartu "buka dari file" — selalu tersedia, tidak butuh izin.
             item {
                 OpenFromFilesCard(onClick = { launchPicker() })
             }
@@ -151,23 +156,23 @@ fun PdfListScreen(
 private fun OpenFromFilesCard(onClick: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(20.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Rounded.FolderOpen,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(28.dp)
             )
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Buka PDF dari File",
@@ -189,7 +194,7 @@ private fun OpenFromFilesCard(onClick: () -> Unit) {
 private fun PdfRow(pdf: PdfItem, onClick: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -201,15 +206,15 @@ private fun PdfRow(pdf: PdfItem, onClick: () -> Unit) {
         ) {
             Surface(
                 color = Color(0xFFD93025).copy(alpha = 0.14f),
-                shape = RoundedCornerShape(9.dp),
-                modifier = Modifier.size(40.dp)
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.size(44.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Rounded.PictureAsPdf,
                         contentDescription = null,
                         tint = Color(0xFFD93025),
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -249,7 +254,7 @@ private fun EmptyPdfHint() {
         Icon(
             imageVector = Icons.Rounded.PictureAsPdf,
             contentDescription = null,
-            modifier = Modifier.size(56.dp),
+            modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.outlineVariant
         )
         Text(

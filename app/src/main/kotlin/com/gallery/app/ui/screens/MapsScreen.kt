@@ -37,11 +37,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -89,7 +86,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Max zoom for ESRI satellite tiles (beyond this → "data not available"). */
 private const val SATELLITE_MAX_ZOOM = 18.0
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -166,7 +162,6 @@ fun MapsScreen(
         mapView.invalidate()
     }
 
-    // Limit zoom when satellite is active
     LaunchedEffect(isSatellite) {
         if (isSatellite && mapView.zoomLevelDouble > SATELLITE_MAX_ZOOM) {
             mapView.controller.setZoom(SATELLITE_MAX_ZOOM)
@@ -205,46 +200,33 @@ fun MapsScreen(
     }
 
     if (geotaggedItems.isEmpty()) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Peta") },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    )
-                )
-            }
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.LocationOff,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.outlineVariant,
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Text(
-                        text = "Tidak Ada Foto Berlokasi",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Foto dengan informasi GPS akan muncul di sini",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 32.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Outlined.LocationOff,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.outlineVariant,
+                    modifier = Modifier.size(64.dp)
+                )
+                Text(
+                    text = "Tidak Ada Foto Berlokasi",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Foto dengan informasi GPS akan muncul di sini",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                )
             }
         }
         return
@@ -257,47 +239,21 @@ fun MapsScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Style switcher — top left, below safe area
-        Row(
+        // Style switcher — top left
+        MapStyleSwitcher(
+            selectedStyle = selectedStyle,
+            onStyleSelected = { source ->
+                selectedStyle = source
+                if (source == esriSatellite && mapView.zoomLevelDouble > SATELLITE_MAX_ZOOM) {
+                    mapView.controller.setZoom(SATELLITE_MAX_ZOOM)
+                }
+            },
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(top = 12.dp, start = 12.dp)
-                .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(20.dp))
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            listOf(
-                "Standard" to TileSourceFactory.MAPNIK,
-                "Satelit" to esriSatellite
-            ).forEach { (label, source) ->
-                val isSelected = selectedStyle == source
-                Box(
-                    modifier = Modifier
-                        .background(
-                            if (isSelected) MapChipSelectedBg else Color.Transparent,
-                            RoundedCornerShape(16.dp)
-                        )
-                        .clickable {
-                            selectedStyle = source
-                            // Enforce max zoom for satellite
-                            if (source == esriSatellite && mapView.zoomLevelDouble > SATELLITE_MAX_ZOOM) {
-                                mapView.controller.setZoom(SATELLITE_MAX_ZOOM)
-                            }
-                        }
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) MapChipSelectedText else MapChipUnselectedText
-                    )
-                }
-            }
-        }
+        )
 
-        // Zoom controls — right center, with proper spacing
+        // Zoom controls — right center
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -328,14 +284,15 @@ fun MapsScreen(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 12.dp, end = 16.dp),
-            color = Color.Black.copy(alpha = 0.65f),
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
             shape = RoundedCornerShape(20.dp)
         ) {
             Text(
                 text = "${resolvedItems.size} Foto",
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
             )
         }
 
@@ -346,54 +303,104 @@ fun MapsScreen(
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.75f))
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(top = 12.dp, bottom = 8.dp)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.95f),
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
             ) {
-                selectedItem?.let { sel ->
-                    Text(
-                        text = sel.item.displayName.substringBeforeLast("."),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .padding(bottom = 4.dp)
-                    )
-                    Text(
-                        text = String.format(Locale.US, "%.5f, %.5f", sel.lat, sel.lon),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .padding(bottom = 8.dp)
-                    )
-                }
-
-                LazyRow(
-                    state = listState,
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    modifier = Modifier
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .padding(top = 12.dp, bottom = 8.dp)
                 ) {
-                    itemsIndexed(
-                        items = resolvedItems,
-                        key = { _, item -> item.id }
-                    ) { _, geoItem ->
-                        val isSelected = geoItem.id == selectedItem?.id
-                        MapPhotoThumbnail(
-                            geoItem = geoItem,
-                            isSelected = isSelected,
-                            onClick = { selectedItem = geoItem },
-                            onDoubleClick = { onMediaClick(geoItem.item) }
+                    selectedItem?.let { sel ->
+                        Text(
+                            text = sel.item.displayName.substringBeforeLast("."),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(bottom = 2.dp)
+                        )
+                        Text(
+                            text = String.format(Locale.US, "%.5f, %.5f", sel.lat, sel.lon),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(bottom = 8.dp)
                         )
                     }
+
+                    LazyRow(
+                        state = listState,
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        itemsIndexed(
+                            items = resolvedItems,
+                            key = { _, item -> item.id }
+                        ) { _, geoItem ->
+                            val isSelected = geoItem.id == selectedItem?.id
+                            MapPhotoThumbnail(
+                                geoItem = geoItem,
+                                isSelected = isSelected,
+                                onClick = { selectedItem = geoItem },
+                                onDoubleClick = { onMediaClick(geoItem.item) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapStyleSwitcher(
+    selectedStyle: org.osmdroid.tileprovider.tilesource.ITileSource,
+    onStyleSelected: (org.osmdroid.tileprovider.tilesource.ITileSource) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val esriSatellite = remember { EsriSatelliteTileSource }
+    val styles = listOf(
+        "Standard" to TileSourceFactory.MAPNIK,
+        "Satelit" to esriSatellite
+    )
+
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f),
+        shape = RoundedCornerShape(24.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            styles.forEach { (label, source) ->
+                val isSelected = selectedStyle == source
+                Box(
+                    modifier = Modifier
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            RoundedCornerShape(20.dp)
+                        )
+                        .clickable { onStyleSelected(source) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
@@ -413,11 +420,11 @@ private fun MapPhotoThumbnail(
     Box(
         modifier = Modifier
             .size(72.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .border(
-                width = if (isSelected) 2.5.dp else 0.dp,
+                width = if (isSelected) 3.dp else 0.dp,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(12.dp)
             )
             .clickable {
                 val now = System.currentTimeMillis()
@@ -441,8 +448,11 @@ private fun MapPhotoThumbnail(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.45f))
-                .padding(vertical = 2.dp),
+                .background(
+                    MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
+                    RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+                )
+                .padding(vertical = 3.dp),
             contentAlignment = Alignment.Center
         ) {
             val date = remember(geoItem.item.dateAdded) {
@@ -451,8 +461,9 @@ private fun MapPhotoThumbnail(
             }
             Text(
                 text = date,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
-                color = Color.White,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
                 maxLines = 1
             )
         }
@@ -465,17 +476,20 @@ private fun MapZoomButton(
     contentDesc: String,
     onClick: () -> Unit,
 ) {
-    IconButton(
+    Surface(
         onClick = onClick,
-        modifier = Modifier
-            .size(40.dp)
-            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+        modifier = Modifier.size(44.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f),
+        shadowElevation = 4.dp,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDesc,
-            tint = Color.White,
-            modifier = Modifier.size(20.dp)
-        )
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDesc,
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(22.dp)
+            )
+        }
     }
 }

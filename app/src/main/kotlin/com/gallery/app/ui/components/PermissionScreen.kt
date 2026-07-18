@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -80,31 +82,39 @@ fun PermissionScreen(onRequestPermission: () -> Unit) {
     ) {
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn() + scaleIn(initialScale = 0.8f),
+            enter = fadeIn() + scaleIn(initialScale = 0.85f),
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
                     imageVector = Icons.Rounded.PhotoLibrary,
                     contentDescription = null,
-                    modifier = Modifier.size(72.dp),
+                    modifier = Modifier.size(80.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(28.dp))
                 Text(
                     text = "Izinkan Akses Penyimpanan",
                     style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
                 Text(
                     text = "Gallery membutuhkan izin untuk mengakses foto dan video di perangkat Anda",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.size(width = 280.dp, height = 48.dp),
+                    modifier = Modifier.padding(horizontal = 40.dp),
                 )
-                Spacer(Modifier.height(24.dp))
-                Button(onClick = onRequestPermission) {
-                    Text("Izinkan Akses")
+                Spacer(Modifier.height(32.dp))
+                Button(
+                    onClick = onRequestPermission,
+                    shape = MaterialTheme.shapes.extraLarge,
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                ) {
+                    Text(
+                        "Izinkan Akses",
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
             }
         }
