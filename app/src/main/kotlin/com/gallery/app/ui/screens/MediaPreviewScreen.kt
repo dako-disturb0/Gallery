@@ -629,7 +629,11 @@ private fun ZoomablePage(
                                     scope.launch {
                                         if (scale > 1.1f) {
                                             val startScale = scale; val startPanX = panX; val startPanY = panY
-                                            animate(0f, 1f, spring(dampingRatio = 0.8f, stiffness = 300f)) { progress, _ ->
+                                            animate(
+                                                initialValue = 0f,
+                                                targetValue = 1f,
+                                                animationSpec = spring<Float>(dampingRatio = 0.8f, stiffness = 300f)
+                                            ) { progress, _ ->
                                                 scale = startScale + (1f - startScale) * progress
                                                 panX = startPanX + (0f - startPanX) * progress
                                                 panY = startPanY + (0f - startPanY) * progress
@@ -643,7 +647,11 @@ private fun ZoomablePage(
                                             val targetPanX = (-tapXFromCenter * (targetScale - 1f)).coerceIn(-maxPanX, maxPanX)
                                             val targetPanY = (-tapYFromCenter * (targetScale - 1f)).coerceIn(-maxPanY, maxPanY)
                                             val startScale = scale; val startPanX = panX; val startPanY = panY
-                                            animate(0f, 1f, spring(dampingRatio = 0.75f, stiffness = 250f)) { progress, _ ->
+                                            animate(
+                                                initialValue = 0f,
+                                                targetValue = 1f,
+                                                animationSpec = spring<Float>(dampingRatio = 0.75f, stiffness = 250f)
+                                            ) { progress, _ ->
                                                 scale = startScale + (targetScale - startScale) * progress
                                                 panX = startPanX + (targetPanX - startPanX) * progress
                                                 panY = startPanY + (targetPanY - startPanY) * progress
