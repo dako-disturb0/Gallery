@@ -1,16 +1,18 @@
 package com.gallery.app.ui.screens
 
 import android.net.Uri
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import android.content.IntentSender
-import android.os.Build
-import android.widget.Toast
 import androidx.annotation.OptIn as AndroidOptIn
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -21,6 +23,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,7 +40,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
@@ -47,6 +53,22 @@ import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Wallpaper
+import androidx.compose.material.icons.outlined.TextFields
+import androidx.compose.material.icons.outlined.SdStorage
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.AspectRatio
+import androidx.compose.material.icons.outlined.Photo
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.SlowMotionVideo
+import androidx.compose.material.icons.outlined.Factory
+import androidx.compose.material.icons.outlined.Camera
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Iso
+import androidx.compose.material.icons.outlined.CenterFocusStrong
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.MoreVert
@@ -67,7 +89,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -83,53 +104,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material.icons.outlined.TextFields
-import androidx.compose.material.icons.outlined.SdStorage
-import androidx.compose.material.icons.outlined.Category
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.AspectRatio
-import androidx.compose.material.icons.outlined.Photo
-import androidx.compose.material.icons.outlined.AccessTime
-import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material.icons.outlined.SlowMotionVideo
-import androidx.compose.material.icons.outlined.Factory
-import androidx.compose.material.icons.outlined.Camera
-import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.Iso
-import androidx.compose.material.icons.outlined.CenterFocusStrong
-import androidx.compose.material.icons.outlined.LocationOn
-import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.MapEventsOverlay
-import org.osmdroid.events.MapEventsReceiver
-import android.graphics.drawable.GradientDrawable
-import android.graphics.Color as AndroidColor
-import android.content.Context
-import android.content.ClipboardManager
-import android.content.ClipData
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem as Media3MediaItem
@@ -147,6 +134,7 @@ import com.gallery.app.data.MediaItem
 import com.gallery.app.data.MediaMetadata
 import com.gallery.app.data.MetadataReader
 import com.gallery.app.data.MetadataSection
+import com.gallery.app.ui.theme.FavoriteRed
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -157,6 +145,11 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// MediaPreviewScreen — Full rewrite inspired by ReFra Gallery
+// Clean, immersive, M3 Expressive
+// ═══════════════════════════════════════════════════════════════════════════════
+
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaPreviewScreen(
@@ -166,7 +159,7 @@ fun MediaPreviewScreen(
     allMediaItems: List<MediaItem>,
     favoritesList: List<MediaItem>,
     onBackClick: () -> Unit,
-    onFavoriteRequest: (List<Uri>, Boolean) -> IntentSender?,
+    onFavoriteRequest: (List<Uri>, Boolean) -> android.content.IntentSender?,
     onDeleteRequest: (List<Uri>) -> DeleteResult,
     onMapClick: ((MediaItem) -> Unit)? = null
 ) {
@@ -257,7 +250,7 @@ fun MediaPreviewScreen(
         return
     }
 
-    // Hide system bars for immersive preview experience
+    // Immersive mode — hide system bars
     val view = LocalView.current
     DisposableEffect(Unit) {
         val window = (view.context as? android.app.Activity)?.window
@@ -280,6 +273,7 @@ fun MediaPreviewScreen(
             .fillMaxSize()
             .background(Color.Black.copy(alpha = backgroundAlpha))
     ) {
+        // ── Pager ──
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
@@ -322,108 +316,30 @@ fun MediaPreviewScreen(
                         if (isZoomed) showUi = false
                     }
                 },
-                onPlayerActive = { player ->
-                    activePlayers[page] = player
-                },
-                onPlayerInactive = { player ->
-                    if (activePlayers[page] == player) {
-                        activePlayers.remove(page)
-                    }
-                }
+                onPlayerActive = { player -> activePlayers[page] = player },
+                onPlayerInactive = { player -> if (activePlayers[page] == player) activePlayers.remove(page) }
             )
         }
 
         val topItem = currentItem
 
+        // ── Top bar — floating, minimal ──
         AnimatedVisibility(
             visible = showUi && dragOffsetY == 0f && !currentPageZoomed && topItem != null,
             enter = fadeIn() + slideInVertically { -it },
             exit = fadeOut() + slideOutVertically { -it },
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .padding(top = 8.dp, start = 4.dp, end = 4.dp, bottom = 4.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = Color.White
-                        )
-                    }
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = formatDate(topItem?.dateAdded ?: 0L),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color.White
-                        )
-                        Text(
-                            text = formatTime(topItem?.dateAdded ?: 0L),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.7f)
-                        )
-                    }
-                    if (favoriteSupported) {
-                        IconButton(onClick = { topItem?.let { toggleFavorite(it) } }) {
-                            Icon(
-                                imageVector = if (topItem?.isFavorite == true) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = "Favorit",
-                                tint = if (topItem?.isFavorite == true) com.gallery.app.ui.theme.FavoriteRed else Color.White
-                            )
-                        }
-                    }
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Rounded.MoreVert,
-                                contentDescription = "Menu",
-                                tint = Color.White
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Detail") },
-                                leadingIcon = { Icon(Icons.Outlined.Info, contentDescription = null) },
-                                onClick = {
-                                    showMenu = false
-                                    showDetailsSheet = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Buka dengan") },
-                                leadingIcon = { Icon(Icons.Outlined.OpenInNew, contentDescription = null) },
-                                onClick = {
-                                    showMenu = false
-                                    topItem?.let { MediaActions.openWith(context, it) }
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Jadikan sebagai") },
-                                leadingIcon = { Icon(Icons.Outlined.Wallpaper, contentDescription = null) },
-                                onClick = {
-                                    showMenu = false
-                                    topItem?.let { MediaActions.useAs(context, it) }
-                                }
-                            )
-                        }
-                    }
-                }
-            }
+            TopFloatingBar(
+                item = topItem,
+                favoriteSupported = favoriteSupported,
+                onBackClick = onBackClick,
+                onFavoriteClick = { topItem?.let { toggleFavorite(it) } },
+                onMenuClick = { showMenu = true }
+            )
         }
 
+        // ── Bottom bar — floating action pills ──
         AnimatedVisibility(
             visible = showUi && dragOffsetY == 0f && !currentPageZoomed && topItem != null,
             enter = fadeIn() + slideInVertically { it },
@@ -433,8 +349,9 @@ fun MediaPreviewScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.5f))
+                    .background(Color.Black.copy(alpha = 0.4f))
             ) {
+                // Video controls
                 if (topItem?.isVideo == true && activePlayer != null) {
                     VideoControls(
                         player = activePlayer!!,
@@ -442,33 +359,50 @@ fun MediaPreviewScreen(
                     )
                 }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                        .padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    BottomAction(Icons.Outlined.Share, "Bagikan") {
-                        topItem?.let { MediaActions.share(context, it) }
-                    }
-                    BottomAction(Icons.Outlined.Edit, "Edit") {
-                        topItem?.let { MediaActions.edit(context, it) }
-                    }
-                    // Tombol Peta: hanya tampil jika item punya geotag DAN onMapClick tersedia
-                    if (onMapClick != null) {
-                        BottomAction(Icons.Outlined.Map, "Peta") {
-                            topItem?.let { onMapClick(it) }
-                        }
-                    }
-                    BottomAction(Icons.Outlined.Info, "Detail") { showDetailsSheet = true }
-                    BottomAction(Icons.Outlined.Delete, "Hapus") {
-                        topItem?.let { requestDelete(it) }
-                    }
-                }
+                // Action row — floating pill style
+                BottomFloatingActions(
+                    item = topItem,
+                    hasMap = onMapClick != null,
+                    onShareClick = { topItem?.let { MediaActions.share(context, it) } },
+                    onEditClick = { topItem?.let { MediaActions.edit(context, it) } },
+                    onMapClick = { topItem?.let { onMapClick?.invoke(it) } },
+                    onInfoClick = { showDetailsSheet = true },
+                    onDeleteClick = { topItem?.let { requestDelete(it) } },
+                )
             }
         }
 
+        // ── Menu dropdown ──
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 56.dp, end = 8.dp)
+        ) {
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Detail") },
+                    leadingIcon = { Icon(Icons.Outlined.Info, null) },
+                    onClick = { showMenu = false; showDetailsSheet = true }
+                )
+                DropdownMenuItem(
+                    text = { Text("Buka dengan") },
+                    leadingIcon = { Icon(Icons.Outlined.OpenInNew, null) },
+                    onClick = { showMenu = false; topItem?.let { MediaActions.openWith(context, it) } }
+                )
+                DropdownMenuItem(
+                    text = { Text("Jadikan sebagai") },
+                    leadingIcon = { Icon(Icons.Outlined.Wallpaper, null) },
+                    onClick = { showMenu = false; topItem?.let { MediaActions.useAs(context, it) } }
+                )
+            }
+        }
+
+        // ── Details sheet ──
         if (showDetailsSheet && topItem != null) {
             ModalBottomSheet(
                 onDismissRequest = { showDetailsSheet = false },
@@ -476,29 +410,142 @@ fun MediaPreviewScreen(
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                 tonalElevation = 0.dp
             ) {
-                MediaDetailsContent(item = topItem)
+                MediaDetailsSheet(item = topItem)
             }
         }
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Top Floating Bar
+// ═══════════════════════════════════════════════════════════════════════════════
+
 @Composable
-private fun BottomAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun TopFloatingBar(
+    item: MediaItem?,
+    favoriteSupported: Boolean,
+    onBackClick: () -> Unit,
+    onFavoriteClick: () -> Unit,
+    onMenuClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        color = Color.Black.copy(alpha = 0.45f),
+        shape = RoundedCornerShape(24.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Kembali",
+                    tint = Color.White
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = formatDate(item?.dateAdded ?: 0L),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = formatTime(item?.dateAdded ?: 0L),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
+
+            if (favoriteSupported) {
+                IconButton(onClick = onFavoriteClick) {
+                    Icon(
+                        imageVector = if (item?.isFavorite == true) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                        contentDescription = "Favorit",
+                        tint = if (item?.isFavorite == true) FavoriteRed else Color.White
+                    )
+                }
+            }
+
+            IconButton(onClick = onMenuClick) {
+                Icon(
+                    imageVector = Icons.Rounded.MoreVert,
+                    contentDescription = "Menu",
+                    tint = Color.White
+                )
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Bottom Floating Actions — Pill-style buttons
+// ═══════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun BottomFloatingActions(
+    item: MediaItem?,
+    hasMap: Boolean,
+    onShareClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onMapClick: () -> Unit,
+    onInfoClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ActionPill(Icons.Outlined.Share, "Bagikan", onShareClick)
+        ActionPill(Icons.Outlined.Edit, "Edit", onEditClick)
+        if (hasMap) {
+            ActionPill(Icons.Outlined.Map, "Peta", onMapClick)
+        }
+        ActionPill(Icons.Outlined.Info, "Detail", onInfoClick)
+        ActionPill(Icons.Outlined.Delete, "Hapus", onDeleteClick)
+    }
+}
+
+@Composable
+private fun ActionPill(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
     Surface(
         onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
-        color = Color.Transparent,
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White.copy(alpha = 0.12f),
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
-            Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.height(6.dp))
+            Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(22.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.9f))
         }
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ZoomablePage — Image viewer with pinch-to-zoom & swipe-to-dismiss
+// ═══════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun ZoomablePage(
@@ -534,18 +581,13 @@ private fun ZoomablePage(
     var panY by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
 
-    // Rasio aspek asli foto — dipakai untuk menghitung batas pan sesuai area
-    // gambar yang benar-benar tampil (ContentScale.Fit = ada letterbox), bukan
-    // seluruh layar. Tanpa ini, zoom bisa menggeser gambar ke area hitam.
     val imgAspect = remember(item.width, item.height) {
         if (item.width > 0 && item.height > 0) item.width.toFloat() / item.height.toFloat() else 1f
     }
 
     LaunchedEffect(isSelected) {
         if (!isSelected && scale != 1f) {
-            scale = 1f
-            panX = 0f
-            panY = 0f
+            scale = 1f; panX = 0f; panY = 0f
         }
     }
 
@@ -579,46 +621,29 @@ private fun ZoomablePage(
                                 if (lastTapTime != 0L && now - lastTapTime < doubleTapTimeout) {
                                     tapJob?.cancel()
                                     lastTapTime = 0L
-                                    val tapChange = event.changes.firstOrNull()
-                                    val tapX = tapChange?.position?.x ?: (size.width / 2f)
-                                    val tapY = tapChange?.position?.y ?: (size.height / 2f)
+                                    val tapX = event.changes.firstOrNull()?.position?.x ?: (size.width / 2f)
+                                    val tapY = event.changes.firstOrNull()?.position?.y ?: (size.height / 2f)
                                     val tapXFromCenter = tapX - size.width / 2f
                                     val tapYFromCenter = tapY - size.height / 2f
 
                                     scope.launch {
                                         if (scale > 1.1f) {
-                                            // Zoom out with spring
-                                            val startScale = scale
-                                            val startPanX = panX
-                                            val startPanY = panY
-                                            animate(
-                                                initialValue = 0f,
-                                                targetValue = 1f,
-                                                animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f)
-                                            ) { progress, _ ->
+                                            val startScale = scale; val startPanX = panX; val startPanY = panY
+                                            animate(0f, 1f, spring(dampingRatio = 0.8f, stiffness = 300f)) { progress, _ ->
                                                 scale = startScale + (1f - startScale) * progress
                                                 panX = startPanX + (0f - startPanX) * progress
                                                 panY = startPanY + (0f - startPanY) * progress
                                             }
                                             onZoomChanged(false)
                                         } else {
-                                            // Zoom in with spring
                                             val targetScale = 2.5f
-                                            val (imgW, imgH) = displayedImageSize(
-                                                size.width.toFloat(), size.height.toFloat(), imgAspect
-                                            )
+                                            val (imgW, imgH) = displayedImageSize(size.width.toFloat(), size.height.toFloat(), imgAspect)
                                             val maxPanX = imgW * (targetScale - 1f) / 2f
                                             val maxPanY = imgH * (targetScale - 1f) / 2f
                                             val targetPanX = (-tapXFromCenter * (targetScale - 1f)).coerceIn(-maxPanX, maxPanX)
                                             val targetPanY = (-tapYFromCenter * (targetScale - 1f)).coerceIn(-maxPanY, maxPanY)
-                                            val startScale = scale
-                                            val startPanX = panX
-                                            val startPanY = panY
-                                            animate(
-                                                initialValue = 0f,
-                                                targetValue = 1f,
-                                                animationSpec = spring(dampingRatio = 0.75f, stiffness = 250f)
-                                            ) { progress, _ ->
+                                            val startScale = scale; val startPanX = panX; val startPanY = panY
+                                            animate(0f, 1f, spring(dampingRatio = 0.75f, stiffness = 250f)) { progress, _ ->
                                                 scale = startScale + (targetScale - startScale) * progress
                                                 panX = startPanX + (targetPanX - startPanX) * progress
                                                 panY = startPanY + (targetPanY - startPanY) * progress
@@ -637,10 +662,7 @@ private fun ZoomablePage(
                             } else if (isDismissDrag) {
                                 onDragEnd()
                             } else if (scale <= 1.01f) {
-                                scale = 1f
-                                panX = 0f
-                                panY = 0f
-                                onZoomChanged(false)
+                                scale = 1f; panX = 0f; panY = 0f; onZoomChanged(false)
                             }
                             break
                         }
@@ -653,14 +675,8 @@ private fun ZoomablePage(
                             totalDrag += pan
                             if (totalDrag.getDistance() > touchSlop || pointerCount >= 2) {
                                 wasDragged = true
-                                if (scale <= 1.01f && pointerCount < 2 &&
-                                    abs(totalDrag.x) > abs(totalDrag.y)
-                                ) {
-                                    break
-                                }
-                                if (scale <= 1.01f && pointerCount < 2) {
-                                    isDismissDrag = true
-                                }
+                                if (scale <= 1.01f && pointerCount < 2 && abs(totalDrag.x) > abs(totalDrag.y)) break
+                                if (scale <= 1.01f && pointerCount < 2) isDismissDrag = true
                             }
                         }
 
@@ -673,17 +689,12 @@ private fun ZoomablePage(
                                 val newScale = (scale * zoom).coerceIn(1f, 5f)
                                 scale = newScale
                                 if (scale > 1.01f) {
-                                    val (imgW, imgH) = displayedImageSize(
-                                        size.width.toFloat(), size.height.toFloat(), imgAspect
-                                    )
+                                    val (imgW, imgH) = displayedImageSize(size.width.toFloat(), size.height.toFloat(), imgAspect)
                                     val maxPanX = imgW * (scale - 1) / 2f
                                     val maxPanY = imgH * (scale - 1) / 2f
                                     panX = (panX + pan.x).coerceIn(-maxPanX, maxPanX)
                                     panY = (panY + pan.y).coerceIn(-maxPanY, maxPanY)
-                                } else {
-                                    panX = 0f
-                                    panY = 0f
-                                }
+                                } else { panX = 0f; panY = 0f }
                                 onZoomChanged(scale > 1.01f)
                                 event.changes.forEach { it.consume() }
                             }
@@ -723,16 +734,15 @@ private fun ZoomablePage(
     }
 }
 
-/**
- * Ukuran gambar yang benar-benar tampil di dalam box [boxW]×[boxH] dengan
- * ContentScale.Fit (letterbox). Dipakai untuk membatasi pan agar gambar tidak
- * bisa digeser keluar ke area kosong (black bar).
- */
 private fun displayedImageSize(boxW: Float, boxH: Float, aspect: Float): Pair<Float, Float> {
     if (boxW <= 0f || boxH <= 0f) return boxW to boxH
     val boxAspect = boxW / boxH
     return if (aspect > boxAspect) boxW to (boxW / aspect) else (boxH * aspect) to boxH
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Video Player
+// ═══════════════════════════════════════════════════════════════════════════════
 
 @AndroidOptIn(UnstableApi::class)
 @Composable
@@ -753,20 +763,14 @@ fun VideoPlayer(
 
     LaunchedEffect(isSelected) {
         if (isSelected) {
-            exoPlayer.playWhenReady = true
-            exoPlayer.play()
-            onPlayerActive(exoPlayer)
+            exoPlayer.playWhenReady = true; exoPlayer.play(); onPlayerActive(exoPlayer)
         } else {
-            exoPlayer.pause()
-            onPlayerInactive(exoPlayer)
+            exoPlayer.pause(); onPlayerInactive(exoPlayer)
         }
     }
 
     DisposableEffect(Unit) {
-        onDispose {
-            onPlayerInactive(exoPlayer)
-            exoPlayer.release()
-        }
+        onDispose { onPlayerInactive(exoPlayer); exoPlayer.release() }
     }
 
     AndroidView(
@@ -790,47 +794,24 @@ fun VideoControls(player: ExoPlayer, modifier: Modifier = Modifier) {
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
-            override fun onIsPlayingChanged(playing: Boolean) {
-                isPlaying = playing
-            }
-
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                duration = player.duration.coerceAtLeast(0L)
-            }
-
-            override fun onPositionDiscontinuity(
-                oldPosition: Player.PositionInfo,
-                newPosition: Player.PositionInfo,
-                reason: Int
-            ) {
+            override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
+            override fun onPlaybackStateChanged(playbackState: Int) { duration = player.duration.coerceAtLeast(0L) }
+            override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
                 currentPosition = newPosition.positionMs
             }
         }
         player.addListener(listener)
-
-        isPlaying = player.isPlaying
-        duration = player.duration.coerceAtLeast(0L)
-        currentPosition = player.currentPosition
-        volume = player.volume
-
-        onDispose {
-            player.removeListener(listener)
-        }
+        isPlaying = player.isPlaying; duration = player.duration.coerceAtLeast(0L)
+        currentPosition = player.currentPosition; volume = player.volume
+        onDispose { player.removeListener(listener) }
     }
 
     LaunchedEffect(player, isPlaying) {
-        if (isPlaying) {
-            while (true) {
-                currentPosition = player.currentPosition
-                delay(200)
-            }
-        }
+        if (isPlaying) { while (true) { currentPosition = player.currentPosition; delay(200) } }
     }
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
@@ -838,39 +819,19 @@ fun VideoControls(player: ExoPlayer, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = {
-                    if (isPlaying) {
-                        player.pause()
-                    } else {
-                        player.play()
-                    }
-                }
-            ) {
+            IconButton(onClick = { if (isPlaying) player.pause() else player.play() }) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
                     tint = Color.White
                 )
             }
-
             Text(
                 text = "${formatDuration(currentPosition)} / ${formatDuration(duration)}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White
             )
-
-            IconButton(
-                onClick = {
-                    if (volume > 0f) {
-                        player.volume = 0f
-                        volume = 0f
-                    } else {
-                        player.volume = 1f
-                        volume = 1f
-                    }
-                }
-            ) {
+            IconButton(onClick = { if (volume > 0f) { player.volume = 0f; volume = 0f } else { player.volume = 1f; volume = 1f } }) {
                 Icon(
                     imageVector = if (volume > 0f) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
                     contentDescription = if (volume > 0f) "Mute" else "Unmute",
@@ -878,15 +839,10 @@ fun VideoControls(player: ExoPlayer, modifier: Modifier = Modifier) {
                 )
             }
         }
-
         Spacer(modifier = Modifier.height(4.dp))
-
         Slider(
             value = currentPosition.toFloat(),
-            onValueChange = { newValue ->
-                currentPosition = newValue.toLong()
-                player.seekTo(currentPosition)
-            },
+            onValueChange = { currentPosition = it.toLong(); player.seekTo(currentPosition) },
             valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
             colors = SliderDefaults.colors(
                 thumbColor = Color.White,
@@ -898,283 +854,12 @@ fun VideoControls(player: ExoPlayer, modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-fun OpenStreetMap(
-    latitude: Double,
-    longitude: Double,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val isDark = isSystemInDarkTheme()
-    
-    val mapView = remember {
-        org.osmdroid.views.MapView(context).apply {
-            org.osmdroid.config.Configuration.getInstance().userAgentValue = context.packageName
-            setBuiltInZoomControls(false)
-            setMultiTouchControls(true)
-            
-            controller.setZoom(16.0)
-            controller.setCenter(org.osmdroid.util.GeoPoint(latitude, longitude))
-        }
-    }
-
-    val esriSatellite = remember { com.gallery.app.ui.map.EsriSatelliteTileSource }
-    var selectedStyle by remember { mutableStateOf<org.osmdroid.tileprovider.tilesource.ITileSource>(TileSourceFactory.MAPNIK) }
-    val isSatellite = selectedStyle == esriSatellite
-    
-    // Limit zoom for satellite tiles
-    LaunchedEffect(isSatellite) {
-        if (isSatellite && mapView.zoomLevelDouble > 18.0) {
-            mapView.controller.setZoom(18.0)
-        }
-    }
-
-    LaunchedEffect(latitude, longitude, selectedStyle) {
-        mapView.setTileSource(selectedStyle)
-        mapView.controller.animateTo(org.osmdroid.util.GeoPoint(latitude, longitude))
-        
-        mapView.overlays.clear()
-        
-        val marker = org.osmdroid.views.overlay.Marker(mapView).apply {
-            position = org.osmdroid.util.GeoPoint(latitude, longitude)
-            val markerDrawable = android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.OVAL
-                setColor(android.graphics.Color.RED)
-                setStroke(4, android.graphics.Color.WHITE)
-                setSize(48, 48)
-            }
-            icon = markerDrawable
-            setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_CENTER)
-            title = "Lokasi Foto"
-        }
-        mapView.overlays.add(marker)
-        
-        val eventsOverlay = org.osmdroid.views.overlay.MapEventsOverlay(object : org.osmdroid.events.MapEventsReceiver {
-            override fun singleTapConfirmedHelper(p: org.osmdroid.util.GeoPoint): Boolean {
-                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("Koordinat", "${p.latitude}, ${p.longitude}")
-                clipboard.setPrimaryClip(clip)
-                android.widget.Toast.makeText(
-                    context, 
-                    "Koordinat disalin: ${String.format(java.util.Locale.US, "%.6f, %.6f", p.latitude, p.longitude)}", 
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-                return true
-            }
-            override fun longPressHelper(p: org.osmdroid.util.GeoPoint): Boolean = false
-        })
-        mapView.overlays.add(eventsOverlay)
-        
-        mapView.invalidate()
-    }
-
-    DisposableEffect(mapView) {
-        onDispose {
-            mapView.onDetach()
-        }
-    }
-
-    Box(modifier = modifier) {
-        AndroidView(
-            factory = { mapView },
-            modifier = Modifier.fillMaxSize()
-        )
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            IconButton(
-                onClick = {
-                    val newZoom = mapView.zoomLevelDouble + 1.0
-                    if (isSatellite && newZoom > 18.0) {
-                        mapView.controller.setZoom(18.0)
-                    } else {
-                        mapView.controller.zoomIn()
-                    }
-                },
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = "Zoom In",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            
-            IconButton(
-                onClick = { mapView.controller.zoomOut() },
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Remove,
-                    contentDescription = "Zoom Out",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        // Style switcher: Standard / Satelit (Topo removed — tiles blank)
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(12.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(24.dp)
-                )
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            val styles = listOf(
-                "Standard" to TileSourceFactory.MAPNIK,
-                "Satelit" to esriSatellite
-            )
-            styles.forEach { (label, source) ->
-                val isSelected = selectedStyle == source
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else Color.Transparent,
-                            shape = RoundedCornerShape(20.dp)
-                        )
-                        .clickable { selectedStyle = source }
-                        .padding(horizontal = 12.dp, vertical = 7.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
-
-data class IconConfig(
-    val icon: ImageVector,
-    val tintColor: Color,
-    val backgroundColor: Color
-)
+// ═══════════════════════════════════════════════════════════════════════════════
+// Media Details Sheet — Clean M3 Expressive
+// ═══════════════════════════════════════════════════════════════════════════════
 
 @Composable
-fun getFieldIconConfig(label: String): IconConfig {
-    val isDark = isSystemInDarkTheme()
-    return when (label) {
-        "Nama" -> IconConfig(
-            icon = Icons.Outlined.TextFields,
-            tintColor = Color(0xFF1A73E8),
-            backgroundColor = if (isDark) Color(0xFF1A73E8).copy(alpha = 0.15f) else Color(0xFFD3E3FD)
-        )
-        "Ukuran" -> IconConfig(
-            icon = Icons.Outlined.SdStorage,
-            tintColor = Color(0xFF1E8E3E),
-            backgroundColor = if (isDark) Color(0xFF1E8E3E).copy(alpha = 0.15f) else Color(0xFFCEEAD6)
-        )
-        "Jenis" -> IconConfig(
-            icon = Icons.Outlined.Category,
-            tintColor = Color(0xFF5F6368),
-            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
-        )
-        "Folder" -> IconConfig(
-            icon = Icons.Outlined.Folder,
-            tintColor = Color(0xFFE37400),
-            backgroundColor = if (isDark) Color(0xFFE37400).copy(alpha = 0.15f) else Color(0xFFFCE8D2)
-        )
-        "Ditambahkan", "Diambil" -> IconConfig(
-            icon = Icons.Outlined.CalendarMonth,
-            tintColor = Color(0xFFD93025),
-            backgroundColor = if (isDark) Color(0xFFD93025).copy(alpha = 0.15f) else Color(0xFFFCE8E6)
-        )
-        "Dimensi" -> IconConfig(
-            icon = Icons.Outlined.AspectRatio,
-            tintColor = Color(0xFF1A73E8),
-            backgroundColor = if (isDark) Color(0xFF1A73E8).copy(alpha = 0.15f) else Color(0xFFD3E3FD)
-        )
-        "Resolusi" -> IconConfig(
-            icon = Icons.Outlined.Photo,
-            tintColor = Color(0xFF1A73E8),
-            backgroundColor = if (isDark) Color(0xFF1A73E8).copy(alpha = 0.15f) else Color(0xFFD3E3FD)
-        )
-        "Durasi" -> IconConfig(
-            icon = Icons.Outlined.Timer,
-            tintColor = Color(0xFFD93025),
-            backgroundColor = if (isDark) Color(0xFFD93025).copy(alpha = 0.15f) else Color(0xFFFCE8E6)
-        )
-        "Bitrate" -> IconConfig(
-            icon = Icons.Outlined.Speed,
-            tintColor = Color(0xFF5F6368),
-            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
-        )
-        "Frame rate" -> IconConfig(
-            icon = Icons.Outlined.SlowMotionVideo,
-            tintColor = Color(0xFF5F6368),
-            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
-        )
-        "Produsen" -> IconConfig(
-            icon = Icons.Outlined.Factory,
-            tintColor = Color(0xFF5F6368),
-            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
-        )
-        "Model" -> IconConfig(
-            icon = Icons.Outlined.CameraAlt,
-            tintColor = Color(0xFF1A73E8),
-            backgroundColor = if (isDark) Color(0xFF1A73E8).copy(alpha = 0.15f) else Color(0xFFD3E3FD)
-        )
-        "Apertur" -> IconConfig(
-            icon = Icons.Outlined.Camera,
-            tintColor = Color(0xFF1E8E3E),
-            backgroundColor = if (isDark) Color(0xFF1E8E3E).copy(alpha = 0.15f) else Color(0xFFCEEAD6)
-        )
-        "Kecepatan rana" -> IconConfig(
-            icon = Icons.Outlined.Timer,
-            tintColor = Color(0xFFE37400),
-            backgroundColor = if (isDark) Color(0xFFE37400).copy(alpha = 0.15f) else Color(0xFFFCE8D2)
-        )
-        "ISO" -> IconConfig(
-            icon = Icons.Outlined.Iso,
-            tintColor = Color(0xFFD93025),
-            backgroundColor = if (isDark) Color(0xFFD93025).copy(alpha = 0.15f) else Color(0xFFFCE8E6)
-        )
-        "Panjang fokus" -> IconConfig(
-            icon = Icons.Outlined.CenterFocusStrong,
-            tintColor = Color(0xFF5F6368),
-            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
-        )
-        "Koordinat" -> IconConfig(
-            icon = Icons.Outlined.LocationOn,
-            tintColor = Color(0xFF1E8E3E),
-            backgroundColor = if (isDark) Color(0xFF1E8E3E).copy(alpha = 0.15f) else Color(0xFFCEEAD6)
-        )
-        else -> IconConfig(
-            icon = Icons.Outlined.Info,
-            tintColor = Color(0xFF5F6368),
-            backgroundColor = if (isDark) Color(0xFF5F6368).copy(alpha = 0.15f) else Color(0xFFE8EAED)
-        )
-    }
-}
-
-@Composable
-private fun MediaDetailsContent(item: MediaItem) {
+private fun MediaDetailsSheet(item: MediaItem) {
     val context = LocalContext.current
     val metadata by produceState<MediaMetadata?>(initialValue = null, item.id) {
         value = withContext(Dispatchers.IO) { MetadataReader.read(context, item) }
@@ -1184,27 +869,36 @@ private fun MediaDetailsContent(item: MediaItem) {
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
+        // Drag handle
+        Box(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(width = 40.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.outlineVariant)
+            )
+        }
+
         Text(
             text = "Informasi Detail",
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
-            color = if (isSystemInDarkTheme()) Color.White else Color.Black,
-            modifier = Modifier.padding(bottom = 16.dp)
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 20.dp)
         )
 
         val data = metadata
         if (data == null) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 48.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(
-                    color = if (isSystemInDarkTheme()) Color(0xFF1A73E8) else Color(0xFF1A73E8)
-                )
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
             val lat = data.latitude
@@ -1214,7 +908,6 @@ private fun MediaDetailsContent(item: MediaItem) {
                 MetadataSectionCard(section)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Jika ada koordinat, tampilkan tombol buka di peta eksternal (MapView dipindah ke tab Peta)
                 if (section.title == "Lokasi" && lat != null && lon != null) {
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -1231,18 +924,10 @@ private fun MediaDetailsContent(item: MediaItem) {
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
-                                    .background(
-                                        color = Color(0xFF1E8E3E).copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ),
+                                    .background(Color(0xFF1E8E3E).copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Map,
-                                    contentDescription = null,
-                                    tint = Color(0xFF1E8E3E),
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                Icon(Icons.Outlined.Map, null, tint = Color(0xFF1E8E3E), modifier = Modifier.size(18.dp))
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
@@ -1252,12 +937,7 @@ private fun MediaDetailsContent(item: MediaItem) {
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f)
                             )
-                            Icon(
-                                imageVector = Icons.Outlined.OpenInNew,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Icon(Icons.Outlined.OpenInNew, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
@@ -1287,37 +967,25 @@ private fun MetadataSectionCard(section: MetadataSection) {
                 section.fields.forEachIndexed { index, field ->
                     val iconConfig = getFieldIconConfig(field.label)
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
-                                .background(iconConfig.backgroundColor, shape = RoundedCornerShape(8.dp)),
+                                .background(iconConfig.backgroundColor, RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = iconConfig.icon,
-                                contentDescription = null,
-                                tint = iconConfig.tintColor,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Icon(iconConfig.icon, null, tint = iconConfig.tintColor, modifier = Modifier.size(18.dp))
                         }
-
                         Spacer(modifier = Modifier.width(12.dp))
-
                         Text(
                             text = field.label,
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Normal,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f)
                         )
-
                         Spacer(modifier = Modifier.width(8.dp))
-
                         Text(
                             text = field.value,
                             style = MaterialTheme.typography.bodyMedium,
@@ -1340,6 +1008,41 @@ private fun MetadataSectionCard(section: MetadataSection) {
         }
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Icon config for metadata fields
+// ═══════════════════════════════════════════════════════════════════════════════
+
+data class IconConfig(val icon: ImageVector, val tintColor: Color, val backgroundColor: Color)
+
+@Composable
+fun getFieldIconConfig(label: String): IconConfig {
+    val isDark = isSystemInDarkTheme()
+    return when (label) {
+        "Nama" -> IconConfig(Icons.Outlined.TextFields, Color(0xFF1A73E8), if (isDark) Color(0xFF1A73E8).copy(0.15f) else Color(0xFFD3E3FD))
+        "Ukuran" -> IconConfig(Icons.Outlined.SdStorage, Color(0xFF1E8E3E), if (isDark) Color(0xFF1E8E3E).copy(0.15f) else Color(0xFFCEEAD6))
+        "Jenis" -> IconConfig(Icons.Outlined.Category, Color(0xFF5F6368), if (isDark) Color(0xFF5F6368).copy(0.15f) else Color(0xFFE8EAED))
+        "Folder" -> IconConfig(Icons.Outlined.Folder, Color(0xFFE37400), if (isDark) Color(0xFFE37400).copy(0.15f) else Color(0xFFFCE8D2))
+        "Ditambahkan", "Diambil" -> IconConfig(Icons.Outlined.CalendarMonth, Color(0xFFD93025), if (isDark) Color(0xFFD93025).copy(0.15f) else Color(0xFFFCE8E6))
+        "Dimensi" -> IconConfig(Icons.Outlined.AspectRatio, Color(0xFF1A73E8), if (isDark) Color(0xFF1A73E8).copy(0.15f) else Color(0xFFD3E3FD))
+        "Resolusi" -> IconConfig(Icons.Outlined.Photo, Color(0xFF1A73E8), if (isDark) Color(0xFF1A73E8).copy(0.15f) else Color(0xFFD3E3FD))
+        "Durasi" -> IconConfig(Icons.Outlined.Timer, Color(0xFFD93025), if (isDark) Color(0xFFD93025).copy(0.15f) else Color(0xFFFCE8E6))
+        "Bitrate" -> IconConfig(Icons.Outlined.Speed, Color(0xFF5F6368), if (isDark) Color(0xFF5F6368).copy(0.15f) else Color(0xFFE8EAED))
+        "Frame rate" -> IconConfig(Icons.Outlined.SlowMotionVideo, Color(0xFF5F6368), if (isDark) Color(0xFF5F6368).copy(0.15f) else Color(0xFFE8EAED))
+        "Produsen" -> IconConfig(Icons.Outlined.Factory, Color(0xFF5F6368), if (isDark) Color(0xFF5F6368).copy(0.15f) else Color(0xFFE8EAED))
+        "Model" -> IconConfig(Icons.Outlined.CameraAlt, Color(0xFF1A73E8), if (isDark) Color(0xFF1A73E8).copy(0.15f) else Color(0xFFD3E3FD))
+        "Apertur" -> IconConfig(Icons.Outlined.Camera, Color(0xFF1E8E3E), if (isDark) Color(0xFF1E8E3E).copy(0.15f) else Color(0xFFCEEAD6))
+        "Kecepatan rana" -> IconConfig(Icons.Outlined.Timer, Color(0xFFE37400), if (isDark) Color(0xFFE37400).copy(0.15f) else Color(0xFFFCE8D2))
+        "ISO" -> IconConfig(Icons.Outlined.Iso, Color(0xFFD93025), if (isDark) Color(0xFFD93025).copy(0.15f) else Color(0xFFFCE8E6))
+        "Panjang fokus" -> IconConfig(Icons.Outlined.CenterFocusStrong, Color(0xFF5F6368), if (isDark) Color(0xFF5F6368).copy(0.15f) else Color(0xFFE8EAED))
+        "Koordinat" -> IconConfig(Icons.Outlined.LocationOn, Color(0xFF1E8E3E), if (isDark) Color(0xFF1E8E3E).copy(0.15f) else Color(0xFFCEEAD6))
+        else -> IconConfig(Icons.Outlined.Info, Color(0xFF5F6368), if (isDark) Color(0xFF5F6368).copy(0.15f) else Color(0xFFE8EAED))
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Utility functions
+// ═══════════════════════════════════════════════════════════════════════════════
 
 private fun formatDate(epochSeconds: Long): String {
     val date = Date(epochSeconds * 1000)
