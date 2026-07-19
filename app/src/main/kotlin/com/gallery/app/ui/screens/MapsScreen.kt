@@ -72,6 +72,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import coil3.toBitmap
 import com.gallery.app.data.GeoMedia
 import com.gallery.app.data.MediaItem
 import com.gallery.app.ui.components.ShimmerBox
@@ -258,12 +259,9 @@ fun MapsScreen(
                 val imageLoader = coil3.SingletonImageLoader.get(context)
                 val result = imageLoader.execute(request)
                 if (result is coil3.request.SuccessResult) {
-                    val drawable = result.drawable
-                    if (drawable is android.graphics.drawable.BitmapDrawable) {
-                        val bitmap = drawable.bitmap
-                        marker.icon = PhotoMarkerDrawable(bitmap, count, isSelected)
-                        mapView.invalidate()
-                    }
+                    val bitmap = result.image.toBitmap()
+                    marker.icon = PhotoMarkerDrawable(bitmap, count, isSelected)
+                    mapView.invalidate()
                 }
             }
         }
