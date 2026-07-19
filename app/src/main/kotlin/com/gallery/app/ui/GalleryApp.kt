@@ -12,6 +12,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +26,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,6 +49,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -92,6 +97,7 @@ private const val TAB_FOTO = 0
 private const val TAB_KOLEKSI = 1
 private const val TAB_CARI = 2
 private const val TAB_PETA = 3
+private const val TAB_MORE = 4
 private const val NAV_ANIM_DURATION = 280
 
 private data class BottomNavEntry(
@@ -107,8 +113,10 @@ private val bottomNavEntries = listOf(
     BottomNavEntry(TAB_KOLEKSI, "Albums", Icons.Rounded.Collections, Icons.Outlined.Collections),
     BottomNavEntry(TAB_CARI, "Search", Icons.Rounded.Search, Icons.Outlined.Search, showLabel = false),
     BottomNavEntry(TAB_PETA, "Places", Icons.Rounded.Map, Icons.Outlined.Map),
+    BottomNavEntry(TAB_MORE, "More", Icons.Filled.MoreVert, Icons.Filled.MoreVert, showLabel = true),
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
     val context = LocalContext.current
@@ -135,6 +143,8 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
         PermissionScreen(onRequestPermission = { permissionLauncher.launch(requiredPermissions) })
         return
     }
+
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
 
     val navController = rememberNavController()
     val mediaItems by viewModel.mediaItems.collectAsState()
@@ -191,14 +201,26 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
             },
         ) {
             composable("main") {
+                val pagerState = rememberPagerState(pageCount = { 4 })
+                
+                LaunchedEffect(selectedTab) {
+                    if (selectedTab < 4) {
+                        pagerState.animateScrollToPage(selectedTab)
+                    }
+                }
+                
+                LaunchedEffect(pagerState.currentPage) {
+                    if (selectedTab != TAB_MORE) {
+                        selectedTab = pagerState.currentPage
+                    }
+                }
+
                 Box(modifier = Modifier.fillMaxSize()) {
-                    AnimatedContent(
-                        targetState = selectedTab,
-                        transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
-                        modifier = Modifier.fillMaxSize(),
-                        label = "tabContent"
-                    ) { tab ->
-                        when (tab) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        when (page) {
                             TAB_FOTO -> PhotosScreen(
                                 groupedMediaItems = groupedMediaItems,
                                 isLoading = isLoading,
@@ -246,12 +268,12 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                                 .shadow(16.dp, RoundedCornerShape(100))
                                 .clip(RoundedCornerShape(100))
                                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)) // Translucent iOS effect
-                                .padding(horizontal = 8.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                .padding(horizontal = 4.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             bottomNavEntries.forEach { entry ->
-                                val isSelected = selectedTab == entry.index
+                                val isSelected = if (entry.index == TAB_MORE) showMoreMenu else selectedTab == entry.index
                                 val bgColor by animateColorAsState(
                                     targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                                     label = "pillBgColor"
@@ -261,84 +283,74 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                                     label = "pillContentColor"
                                 )
 
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(100))
-                                        .background(bgColor)
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            selectedTab = entry.index
-                                            if (entry.index != TAB_PETA) viewModel.clearPendingMapItem()
-                                        }
-                                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                                        .animateContentSize(tween(250)),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (isSelected) entry.selectedIcon else entry.unselectedIcon,
-                                        contentDescription = entry.label,
-                                        tint = contentColor,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-
-                                    if (entry.showLabel && isSelected) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = entry.label,
-                                            color = contentColor,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.SemiBold
+                                Box(modifier = Modifier.wrapContentSize()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(100))
+                                            .background(bgColor)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                if (entry.index == TAB_MORE) {
+                                                    showMoreMenu = true
+                                                } else {
+                                                    selectedTab = entry.index
+                                                    showMoreMenu = false
+                                                    if (entry.index != TAB_PETA) viewModel.clearPendingMapItem()
+                                                }
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 12.dp)
+                                            .animateContentSize(tween(250)),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isSelected) entry.selectedIcon else entry.unselectedIcon,
+                                            contentDescription = entry.label,
+                                            tint = contentColor,
+                                            modifier = Modifier.size(24.dp)
                                         )
+
+                                        if (entry.showLabel && isSelected) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = entry.label,
+                                                color = contentColor,
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
                                     }
-                                }
-                            }
 
-                            // More menu
-                            Box(modifier = Modifier.wrapContentSize()) {
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(100))
-                                        .clickable { showMoreMenu = true }
-                                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.MoreVert,
-                                        contentDescription = "More",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-
-                                DropdownMenu(
-                                    expanded = showMoreMenu,
-                                    onDismissRequest = { showMoreMenu = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Favorites") },
-                                        onClick = { showMoreMenu = false; navController.navigate("favorites_overlay") },
-                                        leadingIcon = { Icon(Icons.Outlined.FavoriteBorder, null) }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("PDFs") },
-                                        onClick = { showMoreMenu = false; navController.navigate("pdf_list_overlay") },
-                                        leadingIcon = { Icon(Icons.Outlined.PictureAsPdf, null) }
-                                    )
-                                    HorizontalDivider()
-                                    DropdownMenuItem(
-                                        text = { Text("Logs & Diagnostics") },
-                                        onClick = { showMoreMenu = false; navController.navigate("log_overlay") },
-                                        leadingIcon = { Icon(Icons.Outlined.BugReport, null) }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Settings") },
-                                        onClick = { showMoreMenu = false; navController.navigate("settings_overlay") },
-                                        leadingIcon = { Icon(Icons.Outlined.Settings, null) }
-                                    )
+                                    if (entry.index == TAB_MORE) {
+                                        DropdownMenu(
+                                            expanded = showMoreMenu,
+                                            onDismissRequest = { showMoreMenu = false }
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text("Favorites") },
+                                                onClick = { showMoreMenu = false; navController.navigate("favorites_overlay") },
+                                                leadingIcon = { Icon(Icons.Outlined.FavoriteBorder, null) }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("PDFs") },
+                                                onClick = { showMoreMenu = false; navController.navigate("pdf_list_overlay") },
+                                                leadingIcon = { Icon(Icons.Outlined.PictureAsPdf, null) }
+                                            )
+                                            HorizontalDivider()
+                                            DropdownMenuItem(
+                                                text = { Text("Logs & Diagnostics") },
+                                                onClick = { showMoreMenu = false; navController.navigate("log_overlay") },
+                                                leadingIcon = { Icon(Icons.Outlined.BugReport, null) }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Settings") },
+                                                onClick = { showMoreMenu = false; navController.navigate("settings_overlay") },
+                                                leadingIcon = { Icon(Icons.Outlined.Settings, null) }
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -435,4 +447,5 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
             }
         }
     }
+}
 }

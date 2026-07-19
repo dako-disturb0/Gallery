@@ -351,7 +351,7 @@ fun MapsScreen(
                     .fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.75f))
                     .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(top = 12.dp, bottom = 8.dp)
+                    .padding(top = 12.dp, bottom = 88.dp)
             ) {
                 selectedItem?.let { sel ->
                     Text(
