@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.LocationOff
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -92,11 +95,88 @@ import java.util.Locale
 /** Max zoom for ESRI satellite tiles (beyond this → "data not available"). */
 private const val SATELLITE_MAX_ZOOM = 18.0
 
+class PhotoMarkerDrawable(
+    private val bitmap: android.graphics.Bitmap,
+    private val count: Int,
+    private val isSelected: Boolean
+) : android.graphics.drawable.Drawable() {
+    private val borderPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = if (isSelected) android.graphics.Color.parseColor("#1A73E8") else android.graphics.Color.WHITE
+        style = android.graphics.Paint.Style.STROKE
+        strokeWidth = 6f
+    }
+    private val backgroundPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
+    }
+    private val badgePaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.BLACK
+        style = android.graphics.Paint.Style.FILL
+    }
+    private val textPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
+        textSize = 24f
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+    }
+
+    override fun draw(canvas: android.graphics.Canvas) {
+        val bounds = bounds
+        val w = bounds.width().toFloat()
+        val h = bounds.height().toFloat()
+
+        val badgeRadius = 18f
+        val padding = badgeRadius
+        val photoLeft = padding
+        val photoTop = padding
+        val photoRight = w - padding
+        val photoBottom = h - padding
+
+        val rectF = android.graphics.RectF(photoLeft, photoTop, photoRight, photoBottom)
+        
+        canvas.drawRect(rectF, backgroundPaint)
+
+        val srcSize = Math.min(bitmap.width, bitmap.height)
+        val srcLeft = (bitmap.width - srcSize) / 2
+        val srcTop = (bitmap.height - srcSize) / 2
+        val cropSrcRect = android.graphics.Rect(srcLeft, srcTop, srcLeft + srcSize, srcTop + srcSize)
+
+        canvas.drawBitmap(bitmap, cropSrcRect, rectF, null)
+
+        canvas.drawRect(rectF, borderPaint)
+
+        if (count > 0) {
+            val badgeX = photoRight
+            val badgeY = photoTop
+            
+            canvas.drawCircle(badgeX, badgeY, badgeRadius, badgePaint)
+
+            val badgeBorderPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.WHITE
+                style = android.graphics.Paint.Style.STROKE
+                strokeWidth = 2f
+            }
+            canvas.drawCircle(badgeX, badgeY, badgeRadius, badgeBorderPaint)
+
+            val textHeight = textPaint.descent() - textPaint.ascent()
+            val textOffset = textHeight / 2 - textPaint.descent()
+            canvas.drawText(count.toString(), badgeX, badgeY + textOffset, textPaint)
+        }
+    }
+
+    override fun setAlpha(alpha: Int) {}
+    override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {}
+    override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
+    
+    override fun getIntrinsicWidth(): Int = 120
+    override fun getIntrinsicHeight(): Int = 120
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapsScreen(
     geotaggedItems: List<GeoMedia>,
     selectedItemId: Long? = null,
+    onBackClick: () -> Unit,
     onMediaClick: (MediaItem) -> Unit,
 ) {
     val context = LocalContext.current
@@ -128,45 +208,68 @@ fun MapsScreen(
     }
     val isSatellite = selectedStyle == esriSatellite
 
-    LaunchedEffect(resolvedItems, selectedStyle, selectedItem) {
+    var showBottomPanel by remember { mutableStateOf(false) }
+
+    val groupedLocations = remember(resolvedItems) {
+        resolvedItems.groupBy { String.format(Locale.US, "%.5f,%.5f", it.lat, it.lon) }
+    }
+
+    LaunchedEffect(groupedLocations, selectedStyle, selectedItem) {
         if (resolvedItems.isEmpty()) return@LaunchedEffect
         mapView.setTileSource(selectedStyle)
         mapView.overlays.clear()
 
-        resolvedItems.forEach { geoItem ->
+        groupedLocations.forEach { (_, itemsAtLocation) ->
+            val primaryItem = itemsAtLocation.firstOrNull() ?: return@forEach
+            val isSelected = itemsAtLocation.any { it.id == selectedItem?.id }
+            val count = itemsAtLocation.size
+
             val marker = Marker(mapView).apply {
-                position = GeoPoint(geoItem.lat, geoItem.lon)
-                val isSelected = geoItem.id == selectedItem?.id
-                val markerDrawable = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.OVAL
-                    val c = if (isSelected) MarkerSelected else MarkerDefault
-                    setColor(android.graphics.Color.argb(
-                        (c.alpha * 255).toInt(),
-                        (c.red * 255).toInt(),
-                        (c.green * 255).toInt(),
-                        (c.blue * 255).toInt()
-                    ))
-                    setStroke(4, android.graphics.Color.WHITE)
-                    setSize(if (isSelected) 56 else 40, if (isSelected) 56 else 40)
+                position = GeoPoint(primaryItem.lat, primaryItem.lon)
+                
+                val placeholderDrawable = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    setColor(android.graphics.Color.LTGRAY)
+                    setStroke(2, android.graphics.Color.WHITE)
+                    setSize(100, 100)
                 }
-                icon = markerDrawable
+                icon = placeholderDrawable
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                title = geoItem.item.displayName
+                
+                title = primaryItem.item.displayName
+                
                 setOnMarkerClickListener { _, _ ->
-                    selectedItem = geoItem
+                    selectedItem = primaryItem
+                    showBottomPanel = true
                     scope.launch {
-                        val idx = resolvedItems.indexOf(geoItem)
+                        val idx = resolvedItems.indexOf(primaryItem)
                         if (idx >= 0) listState.animateScrollToItem(idx)
                     }
                     true
                 }
             }
             mapView.overlays.add(marker)
+
+            scope.launch {
+                val request = ImageRequest.Builder(context)
+                    .data(primaryItem.item.uri)
+                    .size(120)
+                    .build()
+                val imageLoader = coil3.SingletonImageLoader.get(context)
+                val result = imageLoader.execute(request)
+                if (result is coil3.request.SuccessResult) {
+                    val drawable = result.drawable
+                    if (drawable is android.graphics.drawable.BitmapDrawable) {
+                        val bitmap = drawable.bitmap
+                        marker.icon = PhotoMarkerDrawable(bitmap, count, isSelected)
+                        mapView.invalidate()
+                    }
+                }
+            }
         }
         mapView.invalidate()
     }
 
-    // Limit zoom when satellite is active
     LaunchedEffect(isSatellite) {
         if (isSatellite && mapView.zoomLevelDouble > SATELLITE_MAX_ZOOM) {
             mapView.controller.setZoom(SATELLITE_MAX_ZOOM)
@@ -183,7 +286,11 @@ fun MapsScreen(
     LaunchedEffect(selectedItemId, resolvedItems) {
         if (selectedItemId != null && resolvedItems.isNotEmpty()) {
             val idx = resolvedItems.indexOfFirst { it.id == selectedItemId }
-            if (idx >= 0) listState.animateScrollToItem(idx)
+            if (idx >= 0) {
+                selectedItem = resolvedItems[idx]
+                showBottomPanel = true
+                listState.animateScrollToItem(idx)
+            }
         }
     }
 
@@ -208,7 +315,15 @@ fun MapsScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Peta") },
+                    title = { Text("MAP VIEW", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "Kembali"
+                            )
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                     )
@@ -251,17 +366,61 @@ fun MapsScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Map
         AndroidView(
             factory = { mapView },
             modifier = Modifier.fillMaxSize()
         )
 
-        // Style switcher — top left, below safe area
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+            tonalElevation = 4.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = "Kembali",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                Text(
+                    text = "MAP VIEW",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                
+                TextButton(
+                    onClick = { showBottomPanel = !showBottomPanel }
+                ) {
+                    Text(
+                        text = "LIHAT PILIHAN",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        }
+
         Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 12.dp, start = 12.dp)
+                .padding(top = 90.dp, start = 12.dp)
                 .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(20.dp))
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp)
@@ -279,7 +438,6 @@ fun MapsScreen(
                         )
                         .clickable {
                             selectedStyle = source
-                            // Enforce max zoom for satellite
                             if (source == esriSatellite && mapView.zoomLevelDouble > SATELLITE_MAX_ZOOM) {
                                 mapView.controller.setZoom(SATELLITE_MAX_ZOOM)
                             }
@@ -297,7 +455,6 @@ fun MapsScreen(
             }
         }
 
-        // Zoom controls — right center, with proper spacing
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -323,11 +480,10 @@ fun MapsScreen(
             )
         }
 
-        // Photo count badge — top right
         Surface(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 12.dp, end = 16.dp),
+                .padding(top = 90.dp, end = 16.dp),
             color = Color.Black.copy(alpha = 0.65f),
             shape = RoundedCornerShape(20.dp)
         ) {
@@ -339,9 +495,8 @@ fun MapsScreen(
             )
         }
 
-        // Bottom panel: horizontal scroll
         AnimatedVisibility(
-            visible = resolvedItems.isNotEmpty(),
+            visible = showBottomPanel && resolvedItems.isNotEmpty(),
             enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it },
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -351,7 +506,7 @@ fun MapsScreen(
                     .fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.75f))
                     .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(top = 12.dp, bottom = 88.dp)
+                    .padding(top = 12.dp, bottom = 16.dp)
             ) {
                 selectedItem?.let { sel ->
                     Text(

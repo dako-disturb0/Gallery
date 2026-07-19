@@ -151,30 +151,28 @@ fun AlbumsScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    if (geotaggedCount > 0) {
-                        item {
-                            AlbumCard(
-                                title = "Places",
-                                count = geotaggedCount,
-                                onClick = onLocationAlbumClick
+                    item {
+                        AlbumCard(
+                            title = "Places",
+                            count = geotaggedCount,
+                            onClick = onLocationAlbumClick
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(LocationGradientStart, LocationGradientEnd)
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            brush = Brush.linearGradient(
-                                                colors = listOf(LocationGradientStart, LocationGradientEnd)
-                                            )
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.LocationOn,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(48.dp),
-                                        tint = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Outlined.LocationOn,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
                             }
                         }
                     }

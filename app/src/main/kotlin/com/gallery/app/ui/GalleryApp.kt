@@ -96,8 +96,7 @@ import com.gallery.app.viewmodel.GalleryViewModel
 private const val TAB_FOTO = 0
 private const val TAB_KOLEKSI = 1
 private const val TAB_CARI = 2
-private const val TAB_PETA = 3
-private const val TAB_MORE = 4
+private const val TAB_MORE = 3
 private const val NAV_ANIM_DURATION = 280
 
 private data class BottomNavEntry(
@@ -112,7 +111,6 @@ private val bottomNavEntries = listOf(
     BottomNavEntry(TAB_FOTO, "Photos", Icons.Rounded.PhotoLibrary, Icons.Outlined.PhotoLibrary),
     BottomNavEntry(TAB_KOLEKSI, "Albums", Icons.Rounded.Collections, Icons.Outlined.Collections),
     BottomNavEntry(TAB_CARI, "Search", Icons.Rounded.Search, Icons.Outlined.Search, showLabel = false),
-    BottomNavEntry(TAB_PETA, "Places", Icons.Rounded.Map, Icons.Outlined.Map),
     BottomNavEntry(TAB_MORE, "More", Icons.Filled.MoreVert, Icons.Filled.MoreVert, showLabel = true),
 )
 
@@ -164,7 +162,9 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
     var showMoreMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(pendingMapItemId) {
-        if (pendingMapItemId > 0L) selectedTab = TAB_PETA
+        if (pendingMapItemId > 0L) {
+            navController.navigate(Screen.Maps.route)
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -201,10 +201,10 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
             },
         ) {
             composable("main") {
-                val pagerState = rememberPagerState(pageCount = { 4 })
+                val pagerState = rememberPagerState(pageCount = { 3 })
                 
                 LaunchedEffect(selectedTab) {
-                    if (selectedTab < 4) {
+                    if (selectedTab < 3) {
                         pagerState.animateScrollToPage(selectedTab)
                     }
                 }
@@ -218,7 +218,8 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     HorizontalPager(
                         state = pagerState,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        userScrollEnabled = false
                     ) { page ->
                         when (page) {
                             TAB_FOTO -> PhotosScreen(
@@ -235,7 +236,9 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                                 onAlbumClick = { album ->
                                     navController.navigate(Screen.AlbumDetail.createRoute(album.id, album.name))
                                 },
-                                onLocationAlbumClick = { selectedTab = TAB_PETA }
+                                onLocationAlbumClick = {
+                                    navController.navigate(Screen.Maps.route)
+                                }
                             )
                             TAB_CARI -> SearchScreen(
                                 query = searchQuery,
@@ -243,14 +246,6 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                                 results = searchResults,
                                 onMediaClick = { item ->
                                     navController.navigate(Screen.MediaPreview.createRoute(item.id))
-                                }
-                            )
-                            TAB_PETA -> MapsScreen(
-                                geotaggedItems = geotaggedItems,
-                                selectedItemId = if (pendingMapItemId > 0L) pendingMapItemId else null,
-                                onMediaClick = { item ->
-                                    viewModel.clearPendingMapItem()
-                                    navController.navigate(Screen.MediaPreview.createRoute(item.id, fromMaps = true))
                                 }
                             )
                         }
@@ -297,7 +292,7 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                                                 } else {
                                                     selectedTab = entry.index
                                                     showMoreMenu = false
-                                                    if (entry.index != TAB_PETA) viewModel.clearPendingMapItem()
+                                                    viewModel.clearPendingMapItem()
                                                 }
                                             }
                                             .padding(horizontal = 12.dp, vertical = 12.dp)
@@ -356,6 +351,21 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                         }
                     }
                 }
+            }
+
+            composable(Screen.Maps.route) {
+                val pendingId by viewModel.pendingMapItemId.collectAsState()
+                MapsScreen(
+                    geotaggedItems = geotaggedItems,
+                    selectedItemId = if (pendingId > 0L) pendingId else null,
+                    onBackClick = {
+                        viewModel.clearPendingMapItem()
+                        navController.popBackStack()
+                    },
+                    onMediaClick = { item ->
+                        navController.navigate(Screen.MediaPreview.createRoute(item.id, fromMaps = true))
+                    }
+                )
             }
 
             composable(Screen.AlbumDetail.route) { back ->

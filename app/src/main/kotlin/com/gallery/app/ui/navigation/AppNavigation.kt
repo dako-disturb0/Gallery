@@ -48,34 +48,4 @@ sealed class Screen(val route: String) {
     }
 }
 
-/**
- * Item tab di NavigationBar bawah (floating pill).
- * Hanya 3 tab utama: Foto, Koleksi, Peta
- */
-data class NavItem(
-    val screen: Screen,
-    val label: String,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector,
-)
 
-val bottomNavItems = listOf(
-    NavItem(
-        screen        = Screen.Photos,
-        label         = "Foto",
-        selectedIcon  = Icons.Rounded.PhotoLibrary,
-        unselectedIcon= Icons.Outlined.PhotoLibrary,
-    ),
-    NavItem(
-        screen        = Screen.Albums,
-        label         = "Koleksi",
-        selectedIcon  = Icons.Rounded.Collections,
-        unselectedIcon= Icons.Outlined.Collections,
-    ),
-    NavItem(
-        screen        = Screen.Maps,
-        label         = "Peta",
-        selectedIcon  = Icons.Rounded.Map,
-        unselectedIcon= Icons.Outlined.Map,
-    ),
-)
