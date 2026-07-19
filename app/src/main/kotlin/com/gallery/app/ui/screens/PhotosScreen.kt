@@ -28,10 +28,10 @@ import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -56,123 +56,121 @@ fun PhotosScreen(
     isLoading: Boolean,
     onMediaClick: (MediaItem) -> Unit,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        rememberTopAppBarState()
-    )
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
-                title = { Text("Foto") },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                ),
-                actions = {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp).padding(end = 8.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Library",
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.Bold
                         )
+                        if (isLoading && groupedMediaItems.isNotEmpty()) {
+                            Spacer(modifier = Modifier.width(12.dp))
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (isLoading && groupedMediaItems.isEmpty()) {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    contentPadding = PaddingValues(
-                        start = 3.dp, end = 3.dp,
-                        top = innerPadding.calculateTopPadding() + 4.dp,
-                        bottom = innerPadding.calculateBottomPadding() + 4.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    modifier = Modifier.fillMaxSize(),
+                    columns = GridCells.Adaptive(minSize = 100.dp),
+                    contentPadding = PaddingValues(1.dp),
+                    horizontalArrangement = Arrangement.spacedBy(1.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
                     items(30) {
                         ShimmerBox(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(1f)
-                                .clip(MaterialTheme.shapes.small)
                         )
                     }
                 }
             } else if (groupedMediaItems.isEmpty()) {
-                Box(
+                Column(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Outlined.PhotoLibrary,
-                            contentDescription = null,
-                            modifier = Modifier.size(56.dp),
-                            tint = MaterialTheme.colorScheme.outlineVariant,
-                        )
-                        Text(
-                            text = "Belum ada foto atau video",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Outlined.PhotoLibrary,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .padding(bottom = 16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        "No photos found",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             } else {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    contentPadding = PaddingValues(
-                        start = 3.dp, end = 3.dp,
-                        top = innerPadding.calculateTopPadding() + 4.dp,
-                        bottom = innerPadding.calculateBottomPadding() + 4.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    modifier = Modifier.fillMaxSize(),
+                    columns = GridCells.Adaptive(minSize = 100.dp),
+                    contentPadding = PaddingValues(bottom = 100.dp, top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(1.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
-                    groupedMediaItems.forEach { (dateHeader, items) ->
+                    groupedMediaItems.forEach { (dateStr, items) ->
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             Text(
-                                text = dateHeader,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
+                                text = dateStr,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 6.dp)
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
-                        itemsIndexed(
-                            items = items,
-                            key = { _, item -> item.id },
-                        ) { index, item ->
-                            val animProgress = remember { Animatable(0f) }
+                        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                            val alpha = remember { Animatable(0f) }
+                            val scale = remember { Animatable(0.9f) }
+
                             LaunchedEffect(item.id) {
-                                animProgress.animateTo(
-                                    1f,
-                                    tween(280, delayMillis = (index % 9) * 25)
+                                alpha.animateTo(1f, tween(300, delayMillis = (index % 10) * 20))
+                                scale.animateTo(1f, tween(300, delayMillis = (index % 10) * 20))
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .aspectRatio(1f)
+                                    .graphicsLayer {
+                                        this.alpha = alpha.value
+                                        this.scaleX = scale.value
+                                        this.scaleY = scale.value
+                                    }
+                                    .clickable { onMediaClick(item) }
+                            ) {
+                                MediaThumbnail(
+                                    item = item,
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
-                            MediaThumbnail(
-                                item = item,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(1f)
-                                    .clip(MaterialTheme.shapes.small)
-                                    .graphicsLayer {
-                                        alpha = animProgress.value
-                                        scaleX = 0.9f + 0.1f * animProgress.value
-                                        scaleY = 0.9f + 0.1f * animProgress.value
-                                    }
-                                    .clickable { onMediaClick(item) },
-                            )
                         }
                     }
                 }

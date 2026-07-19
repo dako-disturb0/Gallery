@@ -3,7 +3,9 @@ package com.gallery.app.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -13,6 +15,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
@@ -83,18 +86,21 @@ private val DarkColorScheme = darkColorScheme(
     inversePrimary = InversePrimaryDark,
 )
 
+// iOS-like rounded shapes
+val Shapes = Shapes(
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(24.dp)
+)
+
 @Composable
 fun GalleryTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false, // Disable dynamic colors to enforce iOS/Expressive theme
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
-        // Dynamic color on Android 12+, but override with our palette
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightSchemeWithFallback(context, darkTheme)
-        }
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
@@ -110,21 +116,7 @@ fun GalleryTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = Shapes,
         content = content
     )
 }
-
-/**
- * On Android 12+ with dynamic color, we still want our Google-blue primary
- * to shine through. Use dynamic colors for surfaces but override primary.
- */
-@androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.S)
-private fun dynamicLightSchemeWithFallback(
-    context: android.content.Context,
-    darkTheme: Boolean
-) = dynamicLightColorScheme(context).copy(
-    primary = PrimaryLight,
-    onPrimary = OnPrimaryLight,
-    primaryContainer = PrimaryContainerLight,
-    onPrimaryContainer = OnPrimaryContainerLight,
-)
