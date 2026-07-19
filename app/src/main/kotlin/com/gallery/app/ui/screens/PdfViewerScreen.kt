@@ -30,7 +30,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.outlined.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SwapVert
@@ -258,7 +258,7 @@ fun PdfViewerScreen(
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Buka dengan") },
-                                    leadingIcon = { Icon(Icons.Outlined.OpenInNew, contentDescription = null) },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null) },
                                     onClick = { showMenu = false; openPdfWith(context, uri) }
                                 )
                             }

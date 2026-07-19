@@ -1,7 +1,5 @@
 package com.gallery.app.ui.screens
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,185 +8,203 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.PhotoAlbum
-import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.outlined.Collections
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.gallery.app.data.Album
-import com.gallery.app.ui.components.AlbumCoverThumbnail
+import com.gallery.app.data.MediaItem
+import android.net.Uri
+import com.gallery.app.ui.components.MediaThumbnail
 import com.gallery.app.ui.components.ShimmerBox
+import com.gallery.app.ui.theme.LocationGradientEnd
+import com.gallery.app.ui.theme.LocationGradientStart
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumsScreen(
     albums: List<Album>,
     isLoading: Boolean,
-    geotaggedCount: Int = 0,
+    geotaggedCount: Int,
     onAlbumClick: (Album) -> Unit,
-    onLocationAlbumClick: () -> Unit = {},
+    onLocationAlbumClick: () -> Unit
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        rememberTopAppBarState()
-    )
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            MediumTopAppBar(
-                title = { Text("Koleksi") },
-                scrollBehavior = scrollBehavior,
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Albums",
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (isLoading && albums.isNotEmpty()) {
+                            Spacer(modifier = Modifier.width(12.dp))
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                )
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { innerPadding ->
-        if (isLoading) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(
-                    start = 16.dp, end = 16.dp,
-                    top = innerPadding.calculateTopPadding() + 8.dp,
-                    bottom = innerPadding.calculateBottomPadding() + 8.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                items(6) {
-                    Column {
-                        ShimmerBox(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f)
-                                .clip(MaterialTheme.shapes.medium)
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        ShimmerBox(
-                            modifier = Modifier
-                                .fillMaxWidth(0.6f)
-                                .height(14.dp)
-                                .clip(MaterialTheme.shapes.small)
-                        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (isLoading && albums.isEmpty()) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(6) {
+                        Column {
+                            ShimmerBox(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f)
+                                    .clip(MaterialTheme.shapes.large)
+                            )
+                            ShimmerBox(
+                                modifier = Modifier
+                                    .padding(top = 8.dp)
+                                    .width(100.dp)
+                                    .height(20.dp)
+                                    .clip(MaterialTheme.shapes.small)
+                            )
+                            ShimmerBox(
+                                modifier = Modifier
+                                    .padding(top = 4.dp)
+                                    .width(50.dp)
+                                    .height(14.dp)
+                                    .clip(MaterialTheme.shapes.small)
+                            )
+                        }
                     }
                 }
-            }
-        } else if (albums.isEmpty() && geotaggedCount == 0) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            } else if (albums.isEmpty() && geotaggedCount == 0) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Icon(
-                        imageVector = Icons.Outlined.PhotoAlbum,
+                        imageVector = Icons.Outlined.Collections,
                         contentDescription = null,
-                        modifier = Modifier.size(56.dp),
-                        tint = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .padding(bottom = 16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                     Text(
-                        text = "Belum ada album",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
+                        "No albums found",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(
-                    start = 16.dp, end = 16.dp,
-                    top = innerPadding.calculateTopPadding() + 8.dp,
-                    bottom = innerPadding.calculateBottomPadding() + 120.dp, // ruang floating pill
-                ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                // Album virtual "Berlokasi" — tampil di paling atas jika ada foto bergeotag
-                if (geotaggedCount > 0) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        LocationAlbumCard(
-                            geotaggedCount = geotaggedCount,
-                            onClick = onLocationAlbumClick
-                        )
-                    }
-                }
-
-                itemsIndexed(
-                    items = albums,
-                    key = { _, album -> album.id },
-                ) { index, album ->
-                    val animProgress = remember { Animatable(0f) }
-                    LaunchedEffect(album.id) {
-                        animProgress.animateTo(
-                            1f,
-                            tween(350, delayMillis = index * 50)
-                        )
-                    }
-                    Column(
-                        modifier = Modifier
-                            .graphicsLayer {
-                                alpha = animProgress.value
-                                translationY = (1f - animProgress.value) * 40f
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    if (geotaggedCount > 0) {
+                        item {
+                            AlbumCard(
+                                title = "Places",
+                                count = geotaggedCount,
+                                onClick = onLocationAlbumClick
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            brush = Brush.linearGradient(
+                                                colors = listOf(LocationGradientStart, LocationGradientEnd)
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.LocationOn,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(48.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
                             }
-                            .clip(MaterialTheme.shapes.medium)
-                            .clickable { onAlbumClick(album) }
-                            .animateItem()
-                    ) {
-                        AlbumCoverThumbnail(
-                            coverUri = album.coverUri,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f)
-                                .clip(MaterialTheme.shapes.medium),
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = album.name,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 2.dp),
-                        )
-                        Text(
-                            text = "${album.itemCount} item",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 2.dp),
-                        )
+                        }
+                    }
+
+                    items(albums, key = { it.id }) { album ->
+                        AlbumCard(
+                            title = album.name,
+                            count = album.itemCount,
+                            onClick = { onAlbumClick(album) }
+                        ) {
+                            if (album.coverUri != null) {
+                                MediaThumbnail(
+                                    item = MediaItem(0L, album.coverUri, "", 0L, 0L, "image/jpeg", null, null, false),
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Collections,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -197,63 +213,39 @@ fun AlbumsScreen(
 }
 
 @Composable
-private fun LocationAlbumCard(
-    geotaggedCount: Int,
+private fun AlbumCard(
+    title: String,
+    count: Int,
     onClick: () -> Unit,
+    thumbnailContent: @Composable () -> Unit
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(88.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(com.gallery.app.ui.theme.LocationGradientStart, com.gallery.app.ui.theme.LocationGradientEnd)
-                )
-            )
             .clickable { onClick() }
-            .padding(horizontal = 20.dp),
-        contentAlignment = Alignment.CenterStart
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxWidth()
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(MaterialTheme.shapes.large)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.LocationOn,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-            Column {
-                Text(
-                    text = "Berlokasi",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = "$geotaggedCount foto · Buka di Peta",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-            }
-            Spacer(Modifier.weight(1f))
-            Icon(
-                imageVector = Icons.Rounded.LocationOn,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = 0.3f),
-                modifier = Modifier.size(40.dp)
-            )
+            thumbnailContent()
         }
+
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 8.dp),
+            maxLines = 1,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = "$count item${if (count > 1) "s" else ""}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

@@ -5,14 +5,26 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.BugReport
@@ -31,12 +43,9 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -46,9 +55,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -85,13 +99,14 @@ private data class BottomNavEntry(
     val label: String,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
+    val showLabel: Boolean = true
 )
 
 private val bottomNavEntries = listOf(
-    BottomNavEntry(TAB_FOTO, "Foto", Icons.Rounded.PhotoLibrary, Icons.Outlined.PhotoLibrary),
-    BottomNavEntry(TAB_KOLEKSI, "Koleksi", Icons.Rounded.Collections, Icons.Outlined.Collections),
-    BottomNavEntry(TAB_CARI, "Cari", Icons.Rounded.Search, Icons.Outlined.Search),
-    BottomNavEntry(TAB_PETA, "Peta", Icons.Rounded.Map, Icons.Outlined.Map),
+    BottomNavEntry(TAB_FOTO, "Photos", Icons.Rounded.PhotoLibrary, Icons.Outlined.PhotoLibrary),
+    BottomNavEntry(TAB_KOLEKSI, "Albums", Icons.Rounded.Collections, Icons.Outlined.Collections),
+    BottomNavEntry(TAB_CARI, "Search", Icons.Rounded.Search, Icons.Outlined.Search, showLabel = false),
+    BottomNavEntry(TAB_PETA, "Places", Icons.Rounded.Map, Icons.Outlined.Map),
 )
 
 @Composable
@@ -138,89 +153,45 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
     var selectedTab by remember { mutableIntStateOf(TAB_FOTO) }
     var showMoreMenu by remember { mutableStateOf(false) }
 
-    // Switch ke tab Peta jika ada pending item dari MediaPreview
     LaunchedEffect(pendingMapItemId) {
         if (pendingMapItemId > 0L) selectedTab = TAB_PETA
     }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0.dp),
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 0.dp,
-            ) {
-                bottomNavEntries.forEach { entry ->
-                    NavigationBarItem(
-                        selected = selectedTab == entry.index,
-                        onClick = {
-                            selectedTab = entry.index
-                            if (entry.index != TAB_PETA) viewModel.clearPendingMapItem()
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (selectedTab == entry.index) entry.selectedIcon else entry.unselectedIcon,
-                                contentDescription = entry.label,
-                            )
-                        },
-                        label = { Text(entry.label) },
-                        alwaysShowLabel = true,
-                    )
-                }
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { showMoreMenu = true },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Lainnya",
-                        )
-                    },
-                    label = { Text("Lainnya") },
-                    alwaysShowLabel = true,
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavHost(
+            navController = navController,
+            startDestination = "main",
+            enterTransition = {
+                fadeIn(tween(NAV_ANIM_DURATION)) + slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    tween(NAV_ANIM_DURATION),
+                    initialOffset = { it / 10 }
                 )
-            }
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+            },
+            exitTransition = {
+                fadeOut(tween(NAV_ANIM_DURATION)) + slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    tween(NAV_ANIM_DURATION),
+                    targetOffset = { it / 10 }
+                )
+            },
+            popEnterTransition = {
+                fadeIn(tween(NAV_ANIM_DURATION)) + slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(NAV_ANIM_DURATION),
+                    initialOffset = { it / 10 }
+                )
+            },
+            popExitTransition = {
+                fadeOut(tween(NAV_ANIM_DURATION)) + slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(NAV_ANIM_DURATION),
+                    targetOffset = { it / 10 }
+                )
+            },
         ) {
-            NavHost(
-                navController = navController,
-                startDestination = "main",
-                enterTransition = {
-                    fadeIn(tween(NAV_ANIM_DURATION)) + slideIntoContainer(
-                        AnimatedContentTransitionScope.SlideDirection.Start,
-                        tween(NAV_ANIM_DURATION),
-                        initialOffset = { it / 10 }
-                    )
-                },
-                exitTransition = {
-                    fadeOut(tween(NAV_ANIM_DURATION)) + slideOutOfContainer(
-                        AnimatedContentTransitionScope.SlideDirection.Start,
-                        tween(NAV_ANIM_DURATION),
-                        targetOffset = { it / 10 }
-                    )
-                },
-                popEnterTransition = {
-                    fadeIn(tween(NAV_ANIM_DURATION)) + slideIntoContainer(
-                        AnimatedContentTransitionScope.SlideDirection.End,
-                        tween(NAV_ANIM_DURATION),
-                        initialOffset = { it / 10 }
-                    )
-                },
-                popExitTransition = {
-                    fadeOut(tween(NAV_ANIM_DURATION)) + slideOutOfContainer(
-                        AnimatedContentTransitionScope.SlideDirection.End,
-                        tween(NAV_ANIM_DURATION),
-                        targetOffset = { it / 10 }
-                    )
-                },
-            ) {
-                // ── Main: tab content ──
-                composable("main") {
+            composable("main") {
+                Box(modifier = Modifier.fillMaxSize()) {
                     AnimatedContent(
                         targetState = selectedTab,
                         transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
@@ -262,130 +233,205 @@ fun GalleryApp(viewModel: GalleryViewModel = viewModel()) {
                             )
                         }
                     }
-                }
 
-                // ── Album Detail ──
-                composable(Screen.AlbumDetail.route) { back ->
-                    val albumId = back.arguments?.getString("albumId") ?: ""
-                    val albumName = back.arguments?.getString("albumName") ?: ""
-                    AlbumDetailScreen(
-                        albumId = albumId,
-                        albumName = albumName,
-                        mediaItems = mediaItems,
-                        onBackClick = { navController.popBackStack() },
-                        onMediaClick = { item ->
-                            navController.navigate(Screen.MediaPreview.createRoute(item.id, albumId = albumId))
-                        }
-                    )
-                }
+                    // Material 3 Expressive / iOS style Floating Navigation Pill
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(bottom = 24.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .shadow(16.dp, RoundedCornerShape(100))
+                                .clip(RoundedCornerShape(100))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)) // Translucent iOS effect
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            bottomNavEntries.forEach { entry ->
+                                val isSelected = selectedTab == entry.index
+                                val bgColor by animateColorAsState(
+                                    targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                    label = "pillBgColor"
+                                )
+                                val contentColor by animateColorAsState(
+                                    targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    label = "pillContentColor"
+                                )
 
-                // ── Media Preview ──
-                composable(Screen.MediaPreview.route) { back ->
-                    val itemId = back.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
-                    val albumId = back.arguments?.getString("albumId")
-                    val isFavorite = back.arguments?.getString("isFavorite")?.toBoolean() ?: false
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(100))
+                                        .background(bgColor)
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) {
+                                            selectedTab = entry.index
+                                            if (entry.index != TAB_PETA) viewModel.clearPendingMapItem()
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                                        .animateContentSize(tween(250)),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (isSelected) entry.selectedIcon else entry.unselectedIcon,
+                                        contentDescription = entry.label,
+                                        tint = contentColor,
+                                        modifier = Modifier.size(24.dp)
+                                    )
 
-                    val hasGeoTag = remember(itemId, geotaggedItems) {
-                        geotaggedItems.any { it.id == itemId }
-                    }
-
-                    MediaPreviewScreen(
-                        initialItemId = itemId,
-                        albumId = albumId,
-                        isFavorite = isFavorite,
-                        allMediaItems = mediaItems,
-                        favoritesList = favorites,
-                        onBackClick = { navController.popBackStack() },
-                        onFavoriteRequest = viewModel::favoriteRequest,
-                        onDeleteRequest = viewModel::deleteRequest,
-                        onMapClick = if (hasGeoTag) {
-                            { item ->
-                                viewModel.requestOpenInMap(item.id)
-                                navController.popBackStack("main", inclusive = false)
+                                    if (entry.showLabel && isSelected) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = entry.label,
+                                            color = contentColor,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
                             }
-                        } else null
-                    )
-                }
 
-                // ── Favorit ──
-                composable("favorites_overlay") {
-                    FavoritesScreen(
-                        favorites = favorites,
-                        onMediaClick = { item ->
-                            navController.navigate(Screen.MediaPreview.createRoute(item.id, isFavorite = true))
-                        },
-                        onBackClick = { navController.popBackStack() }
-                    )
-                }
+                            // More menu
+                            Box(modifier = Modifier.wrapContentSize()) {
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(100))
+                                        .clickable { showMoreMenu = true }
+                                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "More",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
 
-                // ── Setelan ──
-                composable("settings_overlay") {
-                    SettingsScreen(
-                        currentGrouping = dateGrouping,
-                        onGroupingChange = viewModel::setDateGrouping,
-                        onBackClick = { navController.popBackStack() }
-                    )
-                }
-
-                // ── PDF list ──
-                composable("pdf_list_overlay") {
-                    LaunchedEffect(Unit) { viewModel.loadPdfs() }
-                    PdfListScreen(
-                        pdfs = pdfs,
-                        isLoading = isLoadingPdfs,
-                        onPdfClick = { uri, name ->
-                            navController.navigate(Screen.PdfViewer.createRoute(uri.toString(), name))
-                        },
-                        onBackClick = { navController.popBackStack() }
-                    )
-                }
-
-                // ── PDF viewer ──
-                composable(Screen.PdfViewer.route) { back ->
-                    val uriStr = back.arguments?.getString("uri")
-                    val name = back.arguments?.getString("name") ?: "Dokumen"
-                    val uri = uriStr?.let { Uri.parse(it) }
-                    if (uri != null) {
-                        PdfViewerScreen(
-                            uri = uri,
-                            title = name,
-                            onBackClick = { navController.popBackStack() }
-                        )
+                                DropdownMenu(
+                                    expanded = showMoreMenu,
+                                    onDismissRequest = { showMoreMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Favorites") },
+                                        onClick = { showMoreMenu = false; navController.navigate("favorites_overlay") },
+                                        leadingIcon = { Icon(Icons.Outlined.FavoriteBorder, null) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("PDFs") },
+                                        onClick = { showMoreMenu = false; navController.navigate("pdf_list_overlay") },
+                                        leadingIcon = { Icon(Icons.Outlined.PictureAsPdf, null) }
+                                    )
+                                    HorizontalDivider()
+                                    DropdownMenuItem(
+                                        text = { Text("Logs & Diagnostics") },
+                                        onClick = { showMoreMenu = false; navController.navigate("log_overlay") },
+                                        leadingIcon = { Icon(Icons.Outlined.BugReport, null) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Settings") },
+                                        onClick = { showMoreMenu = false; navController.navigate("settings_overlay") },
+                                        leadingIcon = { Icon(Icons.Outlined.Settings, null) }
+                                    )
+                                }
+                            }
+                        }
                     }
-                }
-
-                // ── Log & Diagnostik ──
-                composable("log_overlay") {
-                    LogScreen(onBackClick = { navController.popBackStack() })
                 }
             }
 
-            // More menu dropdown — overlay on top of content
-            DropdownMenu(
-                expanded = showMoreMenu,
-                onDismissRequest = { showMoreMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Favorit") },
-                    onClick = { showMoreMenu = false; navController.navigate("favorites_overlay") },
-                    leadingIcon = { Icon(Icons.Outlined.FavoriteBorder, null) }
+            composable(Screen.AlbumDetail.route) { back ->
+                val albumId = back.arguments?.getString("albumId") ?: ""
+                val albumName = back.arguments?.getString("albumName") ?: ""
+                AlbumDetailScreen(
+                    albumId = albumId,
+                    albumName = albumName,
+                    mediaItems = mediaItems,
+                    onBackClick = { navController.popBackStack() },
+                    onMediaClick = { item ->
+                        navController.navigate(Screen.MediaPreview.createRoute(item.id, albumId = albumId))
+                    }
                 )
-                DropdownMenuItem(
-                    text = { Text("PDF") },
-                    onClick = { showMoreMenu = false; navController.navigate("pdf_list_overlay") },
-                    leadingIcon = { Icon(Icons.Outlined.PictureAsPdf, null) }
+            }
+
+            composable(Screen.MediaPreview.route) { back ->
+                val itemId = back.arguments?.getString("itemId")?.toLongOrNull() ?: 0L
+                val albumId = back.arguments?.getString("albumId")
+                val isFavorite = back.arguments?.getString("isFavorite")?.toBoolean() ?: false
+
+                val hasGeoTag = remember(itemId, geotaggedItems) {
+                    geotaggedItems.any { it.id == itemId }
+                }
+
+                MediaPreviewScreen(
+                    initialItemId = itemId,
+                    albumId = albumId,
+                    isFavorite = isFavorite,
+                    allMediaItems = mediaItems,
+                    favoritesList = favorites,
+                    onBackClick = { navController.popBackStack() },
+                    onFavoriteRequest = viewModel::favoriteRequest,
+                    onDeleteRequest = viewModel::deleteRequest,
+                    onMapClick = if (hasGeoTag) {
+                        { item ->
+                            viewModel.requestOpenInMap(item.id)
+                            navController.popBackStack("main", inclusive = false)
+                        }
+                    } else null
                 )
-                HorizontalDivider()
-                DropdownMenuItem(
-                    text = { Text("Log & Diagnostik") },
-                    onClick = { showMoreMenu = false; navController.navigate("log_overlay") },
-                    leadingIcon = { Icon(Icons.Outlined.BugReport, null) }
+            }
+
+            composable("favorites_overlay") {
+                FavoritesScreen(
+                    favorites = favorites,
+                    onMediaClick = { item ->
+                        navController.navigate(Screen.MediaPreview.createRoute(item.id, isFavorite = true))
+                    },
+                    onBackClick = { navController.popBackStack() }
                 )
-                DropdownMenuItem(
-                    text = { Text("Setelan") },
-                    onClick = { showMoreMenu = false; navController.navigate("settings_overlay") },
-                    leadingIcon = { Icon(Icons.Outlined.Settings, null) }
+            }
+
+            composable("settings_overlay") {
+                SettingsScreen(
+                    currentGrouping = dateGrouping,
+                    onGroupingChange = viewModel::setDateGrouping,
+                    onBackClick = { navController.popBackStack() }
                 )
+            }
+
+            composable("pdf_list_overlay") {
+                LaunchedEffect(Unit) { viewModel.loadPdfs() }
+                PdfListScreen(
+                    pdfs = pdfs,
+                    isLoading = isLoadingPdfs,
+                    onPdfClick = { uri, name ->
+                        navController.navigate(Screen.PdfViewer.createRoute(uri.toString(), name))
+                    },
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.PdfViewer.route) { back ->
+                val uriStr = back.arguments?.getString("uri")
+                val name = back.arguments?.getString("name") ?: "Dokumen"
+                val uri = uriStr?.let { Uri.parse(it) }
+                if (uri != null) {
+                    PdfViewerScreen(
+                        uri = uri,
+                        title = name,
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            composable("log_overlay") {
+                LogScreen(onBackClick = { navController.popBackStack() })
             }
         }
     }

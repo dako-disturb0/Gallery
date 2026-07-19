@@ -905,7 +905,7 @@ fun OpenStreetMap(
     val mapView = remember {
         org.osmdroid.views.MapView(context).apply {
             org.osmdroid.config.Configuration.getInstance().userAgentValue = context.packageName
-            setBuiltInZoomControls(false)
+            // setBuiltInZoomControls(false)
             setMultiTouchControls(true)
             
             controller.setZoom(16.0)
