@@ -26,7 +26,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api-level: [ 26, 30, 34 ]
+        include:
+          - api-level: 26
+            arch: x86
+          - api-level: 30
+            arch: x86_64
+          - api-level: 34
+            arch: x86_64
 
     steps:
       - name: Checkout
@@ -42,7 +48,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # Emulator x86_64 butuh akselerasi KVM (didukung runner ubuntu-latest).
+      # Emulator x86_64/x86 butuh akselerasi KVM (didukung runner ubuntu-latest).
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -56,7 +62,7 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-${{ matrix.api-level }}
+          key: avd-${{ matrix.api-level }}-${{ matrix.arch }}
 
       # Pemanasan: buat & simpan snapshot AVD sekali agar run berikutnya cepat boot.
       - name: Create AVD snapshot
@@ -65,7 +71,8 @@ jobs:
         with:
           api-level: ${{ matrix.api-level }}
           target: google_apis
-          arch: x86_64
+          arch: ${{ matrix.arch }}
+          ram-size: 2048M
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: false
@@ -76,11 +83,12 @@ jobs:
         with:
           api-level: ${{ matrix.api-level }}
           target: google_apis
-          arch: x86_64
+          arch: ${{ matrix.arch }}
+          ram-size: 2048M
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest
+          script: ./gradlew connectedDebugAndroidTest --no-daemon -Dorg.gradle.jvmargs="-Xmx2048m -XX:MaxMetaspaceSize=512m"
 
       - name: Upload instrumented report
         if: always()
